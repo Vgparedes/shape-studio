@@ -14,14 +14,28 @@ npm run build    # chequea tipos y arma dist/
 
 ```
 src/
-  core/                 modelo del documento (escena, nodos, transformaciones) y azar con semilla
+  core/                 modelo del documento (escena, nodos, transformaciones), azar con semilla y colores
   engine/
-    geometry/path.ts    primitivas: polígonos, curvas suaves (Catmull-Rom → Bézier), elipses...
+    geometry/           Procedural Generation Engine
+      path.ts           primitivas: polígonos, curvas suaves (Catmull-Rom → Bézier), elipses...
+      vec.ts            vectores 2D y 3D
+      noise.ts          ruido suave con semilla (ondulaciones naturales)
+      curve.ts          curvas que crecen cambiando de rumbo (tallos, ramas, raíces), con tropismo
+      ribbon.ts         cintas: línea central → forma rellena de grosor variable
+      branching.ts      ramificación recursiva (árboles, raíces), con tope de segmentos
+    botanical/          Botanical Engine
+      leaf.ts           hojas y pétalos: perfiles de forma, curvatura, borde dentado, nervaduras
+      flowerHead.ts     cabeza de flor en 3D proyectada (de frente, perfil, tres cuartos, cabizbaja)
+      plant.ts          tallo + hojas + raíces y los parámetros que comparten las plantas
     generators/         Shape Library: cada generador declara categoría, parámetros y palabras clave
       types.ts          el contrato Generator
       index.ts          registro + crear / regenerar nodos
-      geometry.ts       generadores geométricos (etapa 1)
+      build.ts          ayudas para armar nodos y estilos
+      geometry.ts       geometría básica
+      botanical.ts      girasol, margarita, flor, tulipán, hoja, rama, raíces, árbol, helecho
+      agro.ts           espiga de trigo, planta de maíz
   render/svg.ts         Rendering Engine: escena → SVG (lo usan el lienzo, las miniaturas y la exportación)
+  render/measure.ts     mide figuras con el motor SVG del navegador (centrar y encuadrar)
   export/export.ts      Export Engine: SVG, PNG y WEBP
   projects/             Project Manager: IndexedDB, autoguardado, proyecto de ejemplo
   state/                estado (zustand): documento, selección, deshacer/rehacer, vista del lienzo
@@ -32,15 +46,17 @@ src/
 
 Cada nodo generado guarda `source = { generator, params, seed }`. Por eso se puede regenerar con otros parámetros u otra semilla sin perder la posición ni los colores, y es la base para la edición por prompts ("hacé las hojas más chicas" = cambiar un parámetro y regenerar).
 
-Módulos que llegan en las próximas etapas: Prompt Interpreter, Botanical Engine, Organic Shape Engine, Style Engine y Composition Engine.
+Las plantas separan sus partes en grupos con nombre y un `role` (`petals`, `center`, `stem`, `leaves`, `roots`...). Los parámetros también van agrupados por parte (`group`), y el panel los muestra así. La edición por prompts va a usar ambas cosas para tocar solo lo que se pide.
+
+Módulos que llegan en las próximas etapas: Prompt Interpreter, Organic Shape Engine, Style Engine y Composition Engine.
 
 ## Etapas
 
 | Etapa | Estado |
 |---|---|
 | 1. Interfaz, lienzo y proyectos | ✓ Hecha |
-| 2. Motor procedural y geometría SVG | Base hecha (primitivas, registro de generadores, semillas) |
-| 3. Generadores botánicos | Pendiente |
+| 2. Motor procedural y geometría SVG | ✓ Hecha |
+| 3. Generadores botánicos | ✓ Hecha (11 figuras, incluye agro) |
 | 4. Generadores abstractos y geométricos | Geometría básica hecha; faltan los orgánicos |
 | 5. Biblioteca de categorías | Pendiente |
 | 6. Estilos visuales | Pendiente |
@@ -59,3 +75,16 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Botanical Engin
 - **Deshacer / rehacer** (Ctrl + Z, Ctrl + Shift + Z o Ctrl + Y). Arrastres y sliders cuentan como un solo paso.
 - **Atajos:** Supr para borrar, Ctrl + D para duplicar, flechas para mover (Mayús = 10 px), Esc para soltar la selección.
 - **Exportar:** SVG con paths reales y capas con nombre; PNG y WEBP con ancho a elección y fondo transparente opcional.
+
+### Etapas 2 y 3: qué hay
+
+- **Motor procedural:** curvas que crecen con curvatura, ondulación y tropismo; ruido con semilla; cintas de grosor variable; ramificación recursiva; proyección 3D para flores.
+- **Botánica:** girasol, margarita, flor genérica, tulipán, hoja, rama con hojas, raíces, árbol (copas, hojas o solo ramas) y helecho (con pínnulas).
+- **Agro:** espiga de trigo (una o varias, con barbas) y planta de maíz (caña con nudos, hojas arqueadas, panoja, choclos con chala). El girasol y las raíces también aparecen en Agro.
+- **Control por partes:** en las flores, por ejemplo, Flor (orientación, inclinación, desorden), Pétalos (cantidad, largo, ancho, forma, coronas, copa), Centro (tamaño, posición, semillas, brácteas), Tallo, Hojas (cantidad, forma, distribución alterna u opuesta, ángulo, caída, nervaduras, borde dentado), Raíces y Colores por parte.
+- **Orientación real:** la flor se puede girar a la derecha o a la izquierda y poner cabizbaja. Los pétalos de adelante y de atrás se ordenan por profundidad.
+- **Siluetas limpias:** troncos, raíces, copas y helechos se dibujan con contorno solo por fuera (`paint-order`). Inkscape, Figma y los navegadores lo respetan. Illustrator puede mostrar las uniones internas.
+- **Al sumar una figura** se centra según lo que ocupa realmente y, si no entra, se achica.
+- **Topes de rendimiento:** la ramificación corta en 1500 segmentos y el follaje se reparte para que el SVG no explote.
+
+**Pendiente de botánica para la etapa 5:** rosa, hongos, cactus, suculentas, frutas, verduras, semillas sueltas, hierbas y enredaderas.

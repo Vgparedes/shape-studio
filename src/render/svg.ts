@@ -19,6 +19,7 @@ function styleAttrs(s: Style): string {
     a += ` stroke="${esc(s.stroke)}" stroke-width="${r2(s.strokeWidth)}"`;
     if (s.lineCap) a += ` stroke-linecap="${s.lineCap}"`;
     if (s.lineJoin) a += ` stroke-linejoin="${s.lineJoin}"`;
+    if (s.paintOrder) a += ` paint-order="stroke"`;
   }
   return a;
 }
@@ -56,6 +57,11 @@ function nodeToSvg(n: SceneNode, mode: Mode, top: boolean): string {
     return `<g${attrs}>${n.children.map((c) => nodeToSvg(c, mode, false)).join('')}</g>`;
   }
   return `<path${attrs} d="${n.d}"${styleAttrs(n.style)}/>`;
+}
+
+/** Marcado de un nodo suelto (para medirlo o hacer miniaturas). */
+export function nodeMarkup(node: SceneNode): string {
+  return nodeToSvg(node, { canvas: false, used: new Set() }, true);
 }
 
 /** Contenido de la escena sin el <svg> que lo envuelve (para meterlo dentro del lienzo). */

@@ -4,6 +4,7 @@ import { Copy, Dices, Trash2 } from 'lucide-react';
 import type { ParamValues, Scene, SceneNode, Style } from '../core/types';
 import { randomSeed } from '../core/random';
 import { getGenerator } from '../engine/generators';
+import type { ParamDef } from '../engine/generators/types';
 import { useSelectedNodes, useStore } from '../state/store';
 import { Button, ColorField, Field, NumberInput, Section, Slider } from './controls';
 
@@ -56,49 +57,67 @@ function DocumentProps() {
   );
 }
 
+function ParamControl({ p, value, set, end }: { p: ParamDef; value: ParamValues[string]; set: (v: ParamValues[string], live?: boolean) => void; end: () => void }) {
+  if (p.type === 'number') return <Slider label={p.label} value={Number(value)} min={p.min} max={p.max} step={p.step} unit={p.unit} onChange={(x, live) => set(x, live)} onEnd={end} />;
+  if (p.type === 'color') return <ColorField label={p.label} value={String(value)} allowNone={false} onChange={(v, live) => v && set(v, live)} onEnd={end} />;
+  if (p.type === 'select')
+    return (
+      <Field label={p.label}>
+        <select className="rounded bg-panel-2 px-1.5 py-1.5 text-[12px] text-ink outline-none ring-1 ring-line focus:ring-accent" value={String(value)} onChange={(e) => set(e.target.value)}>
+          {p.options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+    );
+  return (
+    <label className="flex min-h-7 cursor-pointer items-center gap-2 text-ink-2">
+      <input type="checkbox" checked={Boolean(value)} onChange={(e) => set(e.target.checked)} />
+      {p.label}
+    </label>
+  );
+}
+
 function GeneratorParams({ node }: { node: SceneNode }) {
   const regenerate = useStore((s) => s.regenerate);
   const g = useGesture();
   const gen = node.source ? getGenerator(node.source.generator) : null;
   if (!gen || !node.source) return null;
   const { params, seed } = node.source;
-  const set = (key: string, value: ParamValues[string], live = false) => regenerate(node.id, { ...params, [key]: value }, seed, g.opts(live));
+  const set = (key: string) => (value: ParamValues[string], live = false) => regenerate(node.id, { ...params, [key]: value }, seed, g.opts(live));
+
+  // Los parámetros se agrupan por parte de la figura (Pétalos, Tallo, Hojas...).
+  const groups: { name: string; items: ParamDef[] }[] = [];
+  for (const p of gen.params) {
+    const name = p.group ?? 'Forma';
+    let grp = groups.find((x) => x.name === name);
+    if (!grp) groups.push((grp = { name, items: [] }));
+    grp.items.push(p);
+  }
 
   return (
-    <Section title={`Parámetros · ${gen.name}`}>
-      {gen.params.map((p) => {
-        const v = params[p.key] ?? p.default;
-        if (p.type === 'number')
-          return <Slider key={p.key} label={p.label} value={Number(v)} min={p.min} max={p.max} step={p.step} unit={p.unit} onChange={(x, live) => set(p.key, x, live)} onEnd={() => g.end()} />;
-        if (p.type === 'select')
-          return (
-            <Field key={p.key} label={p.label}>
-              <select className="rounded bg-panel-2 px-1.5 py-1.5 text-[12px] text-ink outline-none ring-1 ring-line focus:ring-accent" value={String(v)} onChange={(e) => set(p.key, e.target.value)}>
-                {p.options.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          );
-        return (
-          <label key={p.key} className="flex cursor-pointer items-center gap-2 text-ink-2">
-            <input type="checkbox" checked={Boolean(v)} onChange={(e) => set(p.key, e.target.checked)} />
-            {p.label}
-          </label>
-        );
-      })}
-      <div className="flex items-end gap-2">
-        <Field label="Semilla">
-          <NumberInput ariaLabel="Semilla" value={seed} step={1} min={0} onCommit={(v) => regenerate(node.id, params, Math.round(v))} />
-        </Field>
-        <Button onClick={() => regenerate(node.id, params, randomSeed())} className="shrink-0">
-          <Dices size={14} /> Otra semilla
-        </Button>
-      </div>
-      <p className="text-[11px] leading-relaxed text-ink-3">La misma semilla siempre da el mismo resultado. Cambiarla solo altera lo que tiene azar (por ejemplo, la irregularidad).</p>
-    </Section>
+    <>
+      <Section title={`Variación · ${gen.name}`}>
+        <div className="flex items-end gap-2">
+          <Field label="Semilla">
+            <NumberInput ariaLabel="Semilla" value={seed} step={1} min={0} onCommit={(v) => regenerate(node.id, params, Math.round(v))} />
+          </Field>
+          <Button onClick={() => regenerate(node.id, params, randomSeed())} className="shrink-0">
+            <Dices size={14} /> Otra semilla
+          </Button>
+        </div>
+        <p className="text-[11px] leading-relaxed text-ink-3">La misma semilla siempre da el mismo resultado. Otra semilla cambia solo lo que tiene azar: la forma general se mantiene.</p>
+      </Section>
+      {groups.map((grp, i) => (
+        <Section key={grp.name} title={grp.name} defaultOpen={groups.length <= 3 || i < 3}>
+          {grp.items.map((p) => (
+            <ParamControl key={p.key} p={p} value={params[p.key] ?? p.default} set={set(p.key)} end={() => g.end()} />
+          ))}
+        </Section>
+      ))}
+    </>
   );
 }
 
@@ -111,6 +130,8 @@ function NodeProps({ node }: { node: SceneNode }) {
   const style = first?.style;
   const setStyle = (patch: Partial<Style>, live: boolean) => update(node.id, (n) => restyle(n, patch), g.opts(live));
   const isGroup = node.kind === 'group';
+  // Si la figura tiene colores propios por parte (sección Colores), se editan ahí y no acá.
+  const ownColors = isGroup && !!node.source && !!getGenerator(node.source.generator)?.params.some((p) => p.type === 'color');
 
   return (
     <>
@@ -133,7 +154,7 @@ function NodeProps({ node }: { node: SceneNode }) {
       </Section>
       <Section title="Apariencia">
         <Slider label="Opacidad" value={Math.round(node.opacity * 100)} min={0} max={100} step={1} unit="%" onChange={(v, live) => update(node.id, (n) => ({ ...n, opacity: v / 100 }), g.opts(live))} onEnd={() => g.end()} />
-        {style && (
+        {style && !ownColors && (
           <>
             <ColorField label={isGroup ? 'Relleno (todo el grupo)' : 'Relleno'} value={style.fill} onChange={(v, live) => setStyle({ fill: v }, live)} onEnd={() => g.end()} />
             <ColorField label={isGroup ? 'Trazo (todo el grupo)' : 'Trazo'} value={style.stroke} onChange={(v, live) => setStyle({ stroke: v, strokeWidth: v && !style.strokeWidth ? 2 : style.strokeWidth }, live)} onEnd={() => g.end()} />

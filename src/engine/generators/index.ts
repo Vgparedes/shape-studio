@@ -5,6 +5,8 @@ import type { ParamValues, SceneNode, Transform } from '../../core/types';
 import { createRng, randomSeed } from '../../core/random';
 import { IDENTITY, newId } from '../../core/scene';
 import { geometryGenerators } from './geometry';
+import { botanicalGenerators } from './botanical';
+import { agroGenerators } from './agro';
 
 export const CATEGORIES: { id: CategoryId; name: string }[] = [
   { id: 'botanica', name: 'Botánica y naturaleza' },
@@ -21,7 +23,7 @@ const registry = new Map<string, Generator>();
 export function registerGenerators(list: Generator[]) {
   for (const g of list) registry.set(g.id, g);
 }
-registerGenerators(geometryGenerators);
+registerGenerators([...botanicalGenerators, ...agroGenerators, ...geometryGenerators]);
 
 export const getGenerator = (id: string) => registry.get(id) ?? null;
 export const listGenerators = () => [...registry.values()];

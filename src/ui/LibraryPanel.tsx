@@ -2,17 +2,20 @@
 // Solo aparecen las categorías que ya tienen generadores (nada de botones que no hacen nada).
 import { useMemo } from 'react';
 import { CATEGORIES, createFromGenerator, listGenerators } from '../engine/generators';
-import { sceneToSvg } from '../render/svg';
+import { nodeMarkup } from '../render/svg';
+import { measureLocal } from '../render/measure';
 import { useStore } from '../state/store';
 import { Section } from './controls';
 
 function thumbnail(id: string): string {
   const node = createFromGenerator(id, { seed: 1 });
   if (!node) return '';
-  // Mesa cuadrada centrada en la figura; los generadores dibujan alrededor de (0, 0).
-  const size = 360;
-  node.transform = { ...node.transform, x: size / 2, y: size / 2 };
-  const svg = sceneToSvg({ width: size, height: size, background: null, nodes: [node] });
+  // Encuadre justo según lo que ocupa la figura, con un margen.
+  const b = measureLocal(node) ?? { x: -100, y: -100, width: 200, height: 200 };
+  const side = Math.max(b.width, b.height) * 1.08;
+  const vx = b.x + b.width / 2 - side / 2;
+  const vy = b.y + b.height / 2 - side / 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${side} ${side}">${nodeMarkup(node)}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
@@ -20,7 +23,7 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
   const add = useStore((s) => s.addFromGenerator);
   const groups = useMemo(() => {
     const all = listGenerators();
-    return CATEGORIES.map((c) => ({ ...c, items: all.filter((g) => g.category === c.id).map((g) => ({ g, thumb: thumbnail(g.id) })) })).filter((c) => c.items.length);
+    return CATEGORIES.map((c) => ({ ...c, items: all.filter((g) => g.category === c.id || g.also?.includes(c.id)).map((g) => ({ g, thumb: thumbnail(g.id) })) })).filter((c) => c.items.length);
   }, []);
 
   return (
@@ -54,7 +57,7 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
           </Section>
         ))}
         <p className="px-3 py-3 text-[11px] leading-relaxed text-ink-3">
-          Botánica, formas orgánicas y el resto de las categorías se suman en las próximas etapas.
+          Formas orgánicas, paisaje, animales, objetos y símbolos se suman en las próximas etapas.
         </p>
       </div>
     </div>

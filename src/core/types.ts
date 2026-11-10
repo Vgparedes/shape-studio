@@ -10,6 +10,8 @@ export type Style = {
   strokeWidth: number;
   lineCap?: 'round' | 'butt' | 'square';
   lineJoin?: 'round' | 'miter' | 'bevel';
+  /** 'stroke' pinta el contorno antes que el relleno: en formas superpuestas solo se ve el contorno de afuera. */
+  paintOrder?: 'stroke';
 };
 
 export type ParamValue = number | string | boolean;
@@ -26,6 +28,8 @@ interface NodeBase {
   hidden: boolean;
   locked: boolean;
   source?: Source;
+  /** Qué parte es dentro de su figura (pétalos, hojas, tallo...). La edición por prompts la usa para saber qué tocar. */
+  role?: string;
 }
 
 export interface PathNode extends NodeBase {

@@ -14,10 +14,13 @@ export type CategoryId =
   | 'simbolos'
   | 'agro';
 
+/** `group` agrupa parámetros por parte de la figura en el panel (Pétalos, Tallo, Hojas...). */
+type ParamBase = { key: string; label: string; group?: string };
 export type ParamDef =
-  | { key: string; label: string; type: 'number'; min: number; max: number; step: number; default: number; unit?: string }
-  | { key: string; label: string; type: 'select'; options: { value: string; label: string }[]; default: string }
-  | { key: string; label: string; type: 'boolean'; default: boolean };
+  | (ParamBase & { type: 'number'; min: number; max: number; step: number; default: number; unit?: string })
+  | (ParamBase & { type: 'select'; options: { value: string; label: string }[]; default: string })
+  | (ParamBase & { type: 'boolean'; default: boolean })
+  | (ParamBase & { type: 'color'; default: string });
 
 export interface GenContext {
   params: ParamValues;
@@ -34,6 +37,8 @@ export interface Generator {
   id: string;
   name: string;
   category: CategoryId;
+  /** Otras categorías donde también aparece en la biblioteca (por ejemplo, el girasol en Agro). */
+  also?: CategoryId[];
   description: string;
   /** Palabras con las que el intérprete de prompts va a reconocer este generador (etapa 7). */
   keywords: string[];

@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { ParamValues, Project, Scene, SceneNode } from '../core/types';
 import { cloneNode, findNode, locate, mapNode, newId, removeNodes, reorderNode } from '../core/scene';
 import { createFromGenerator, regenerateNode } from '../engine/generators';
+import { measureLocal } from '../render/measure';
 
 const HISTORY_LIMIT = 150;
 
@@ -98,10 +99,19 @@ export const useStore = create<State>((set, get) => {
     addFromGenerator: (generatorId) => {
       const p = get().project;
       if (!p) return;
+      const node = createFromGenerator(generatorId);
+      if (!node) return;
+      // Se centra en la mesa de trabajo según lo que realmente ocupa, y si no entra se achica.
       // Cada figura nueva cae un poco corrida para que no tape exactamente a la anterior.
       const offset = (p.doc.nodes.length % 6) * 24;
-      const node = createFromGenerator(generatorId, { transform: { x: p.doc.width / 2 + offset, y: p.doc.height / 2 + offset } });
-      if (!node) return;
+      const box = measureLocal(node) ?? { x: -50, y: -50, width: 100, height: 100 };
+      const scale = Math.min(1, (p.doc.width * 0.8) / box.width, (p.doc.height * 0.8) / box.height);
+      node.transform = {
+        ...node.transform,
+        scale: Math.round(scale * 1000) / 1000,
+        x: p.doc.width / 2 + offset - (box.x + box.width / 2) * scale,
+        y: p.doc.height / 2 + offset - (box.y + box.height / 2) * scale,
+      };
       withDoc((d) => ({ ...d, nodes: [...d.nodes, node] }));
       set({ selection: [node.id] });
     },
