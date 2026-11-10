@@ -1,7 +1,7 @@
 // Estado de la app: proyecto abierto, selección e historial para deshacer y rehacer.
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import type { ParamValues, Project, Scene, SceneNode } from '../core/types';
+import type { ParamValues, Project, PromptEntry, Scene, SceneNode } from '../core/types';
 import { cloneNode, findNode, locate, mapNode, newId, removeNodes, reorderNode } from '../core/scene';
 import { createFromGenerator, regenerateNode } from '../engine/generators';
 import { measureLocal } from '../render/measure';
@@ -44,6 +44,10 @@ interface State {
   applyStyle(styleId: string): void;
   updateFx(id: string, patch: { params?: ParamValues; seed?: number }, opts?: { history?: boolean }): void;
   removeFx(id: string): void;
+
+  /** Suma un nodo ya armado (por ejemplo, lo generado por un pedido) y lo selecciona. */
+  addNode(node: SceneNode): void;
+  addPromptEntry(entry: PromptEntry): void;
 
   saveVersion(label: string): void;
   restoreVersion(id: string): void;
@@ -188,6 +192,15 @@ export const useStore = create<State>((set, get) => {
         void _fx;
         return rest as SceneNode;
       }),
+
+    addNode: (node) => {
+      withDoc((d) => ({ ...d, nodes: [...d.nodes, node] }));
+      set({ selection: [node.id] });
+    },
+    addPromptEntry: (entry) => {
+      const p = get().project;
+      if (p) set({ project: { ...p, prompts: [...(p.prompts ?? []), entry].slice(-200) } });
+    },
 
     saveVersion: (label) => {
       const p = get().project;

@@ -141,7 +141,9 @@ const minimalist: StyleDef = {
           const xs = c.map((p) => p[0]);
           const ys = c.map((p) => p[1]);
           if (Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) < num(ctx, 'minSize')) return '';
-          const simple = simplify(c, eps);
+          // Las piezas finitas (tallos, raíces) no se pueden simplificar tanto como su largo: se aplastarían.
+          const thin = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+          const simple = simplify(c, Math.max(0.4, Math.min(eps, thin * 0.2)));
           return simple.length < 3 && closed ? '' : smoothPath(closed ? simple.slice(0, -1) : simple, closed, 1);
         });
       },

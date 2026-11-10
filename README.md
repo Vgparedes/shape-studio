@@ -47,6 +47,13 @@ src/
       symbols.ts        mandala, marco, emblema, ornamento, composición simétrica
       botanical.ts      girasol, margarita, flor, tulipán, hoja, rama, raíces, árbol, helecho
       agro.ts           espiga de trigo, planta de maíz
+  prompt/               Prompt Interpreter
+    types.ts            el Plan: instrucciones estructuradas que entiende el motor
+    lexicon.ts          vocabulario: números, colores, partes, disposición
+    local.ts            intérprete por reglas (sin servicios externos)
+    ollama.ts           intérprete opcional con Ollama (modelo local), validado contra el catálogo
+    execute.ts          Composition Engine inicial: ejecuta el Plan y ubica las figuras
+    index.ts            orquesta: interpreta, ejecuta y guarda en el historial
   render/svg.ts         Rendering Engine: escena → SVG (lo usan el lienzo, las miniaturas y la exportación)
   render/measure.ts     mide figuras con el motor SVG del navegador (centrar y encuadrar)
   export/export.ts      Export Engine: SVG, PNG y WEBP
@@ -61,7 +68,7 @@ Cada nodo generado guarda `source = { generator, params, seed }`. Por eso se pue
 
 Las plantas separan sus partes en grupos con nombre y un `role` (`petals`, `center`, `stem`, `leaves`, `roots`...). Los parámetros también van agrupados por parte (`group`), y el panel los muestra así. La edición por prompts va a usar ambas cosas para tocar solo lo que se pide.
 
-Módulos que llegan en las próximas etapas: Prompt Interpreter y Composition Engine (la composición abstracta ya trae una versión simple de ubicación con equilibrio).
+El Composition Engine tiene una versión inicial (`prompt/execute.ts`) que se completa en la etapa 9.
 
 ## Etapas
 
@@ -73,7 +80,7 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter y Composition En
 | 4. Generadores abstractos y geométricos | ✓ Hecha |
 | 5. Biblioteca de categorías | ✓ Hecha (69 figuras en 8 categorías) |
 | 6. Estilos visuales | ✓ Hecha (20 estilos) |
-| 7. Prompts (reglas locales + Ollama opcional) | Pendiente |
+| 7. Prompts (reglas locales + Ollama opcional) | ✓ Hecha |
 | 8. Variaciones y edición conversacional | Pendiente |
 | 9. Editor manual completo | Parcial (mover, capas, deshacer) |
 | 10. Referencias visuales y exportación | Exportación SVG / PNG / WEBP hecha |
@@ -141,3 +148,29 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter y Composition En
 - **Exportación.** El SVG sale con la geometría estilizada real (paths), sin imágenes adentro.
 - **Rendimiento.** Los paths se recorren y se recortan en JavaScript puro (scanline con regla nonzero), sin consultar al navegador punto por punto. Un girasol con Dotwork o Engraving tarda unos 15 ms. Además, el lienzo se redibuja con prioridad baja para que los sliders no se traben.
 - **Para tener en cuenta:** Monochrome y Duotone trabajan sobre todo con el color: Duotone suma trama de puntos solo en los medios tonos y Monochrome agrupa los tonos en niveles.
+
+### Etapa 7: qué hay
+
+Barra de **pedidos** debajo del lienzo: escribís lo que querés y se genera. Enter genera; Mayús + Enter baja de línea.
+
+- **Intérprete local por reglas** (no necesita nada instalado). Entiende:
+  - **Figuras**: por las palabras clave de cada generador, en singular o plural.
+  - **Cantidades**: "cinco", "5", "varios", "una docena".
+  - **Partes**: "con seis hojas ovaladas", "raíces ramificadas", "tallos ligeramente inclinados", "pétalos finos", "líneas finas verdes", "cactus en maceta", "con flores".
+  - **Orientación**: "de perfil", "mirando hacia la derecha", "cabizbaja", "de frente".
+  - **Tamaño**: "grande", "chico", "alto", "diferentes tamaños".
+  - **Colores y paleta**: más de 50 nombres, con "claro", "oscuro" o "pastel".
+  - **Disposición**: en fila, en columna, en grilla, en círculo, dispersas, agrupadas, patrón.
+  - **Estilo**: "en estilo grabado", "dotwork", "minimalista"; "elegante" da Line Art fino.
+  - **Formas orgánicas**: simétricas o asimétricas, suaves, irregulares, complejas.
+  - **Pedidos abiertos** ("algo decorativo relacionado con la naturaleza"): elige figuras por tema y lo dice.
+  - **Colecciones** ("una colección de símbolos"): figuras distintas del mismo tema.
+- **Honesto con lo que entiende.** Cada pedido muestra qué entendió (chips) y qué palabras no usó.
+- **Historial por proyecto.** Los pedidos se guardan con el proyecto. Desde ahí se puede volver a usar uno.
+- **Lo generado queda editable.** Sale como un grupo con el texto del pedido; cada figura sigue siendo regenerable y editable. El grupo guarda el plan y la semilla para la etapa 8 (variaciones y edición).
+- **Ollama, opcional.** Se activa en el botón del intérprete. Trabaja en dos pasos cortos: primero elige figuras, disposición, estilo y paleta; después los parámetros de cada figura. Todo se valida contra el catálogo y los rangos antes de ejecutarse. Si Ollama no responde, avisa y usa el intérprete local.
+  - Desde GitHub Pages, Ollama tiene que arrancar con `OLLAMA_ORIGINS=https://vgparedes.github.io`.
+  - **No se probó con un modelo real**: en la compu de desarrollo no está instalado. Sí se probó que avise cuando falla y que siga con el intérprete local.
+- **Límites actuales:**
+  - Cada pedido arma su composición sobre toda la mesa de trabajo, aunque ya haya otras cosas. Combinar con lo existente y editar por instrucciones ("hacé las hojas más chicas") llega en la etapa 8.
+  - El intérprete local no entiende relaciones espaciales finas ("una luna arriba a la izquierda del árbol").

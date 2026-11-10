@@ -35,6 +35,8 @@ interface NodeBase {
    * se aplica al dibujar y al exportar, así se puede cambiar o sacar sin perder la figura original.
    */
   fx?: StyleFx;
+  /** Si el nodo salió de un pedido escrito: el texto, el plan interpretado y la semilla (para variaciones y ediciones). */
+  prompt?: { text: string; plan: unknown; seed: number };
 }
 
 export type StyleFx = { style: string; params: ParamValues; seed: number };
@@ -66,6 +68,18 @@ export interface Version {
   doc: Scene;
 }
 
+/** Un pedido escrito y lo que se hizo con él (queda en el historial del proyecto). */
+export interface PromptEntry {
+  id: string;
+  text: string;
+  at: number;
+  source: 'local' | 'ollama';
+  notes: string[];
+  unknown: string[];
+  nodeId?: string;
+  error?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -73,4 +87,6 @@ export interface Project {
   updatedAt: number;
   doc: Scene;
   versions: Version[];
+  /** Historial de pedidos escritos de este proyecto. */
+  prompts?: PromptEntry[];
 }

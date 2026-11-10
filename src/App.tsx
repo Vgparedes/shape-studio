@@ -8,6 +8,7 @@ import { PropertiesPanel } from './ui/PropertiesPanel';
 import { LayersPanel } from './ui/LayersPanel';
 import { ProjectsDialog } from './ui/ProjectsDialog';
 import { ExportDialog } from './ui/ExportDialog';
+import { PromptBar } from './ui/PromptBar';
 import { cx } from './ui/controls';
 
 const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
@@ -101,8 +102,11 @@ export default function App() {
             <LibraryPanel onPicked={() => !isWide() && setLeftOpen(false)} />
           </aside>
         )}
-        <main className="min-w-0 flex-1">
-          <Canvas />
+        <main className="flex min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1">
+            <Canvas />
+          </div>
+          <PromptBar />
         </main>
         {rightOpen && (
           <aside className={cx('flex w-72 shrink-0 flex-col border-l border-line bg-panel max-lg:right-0 max-sm:w-[86vw]', floating)}>
