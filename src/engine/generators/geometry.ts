@@ -77,6 +77,7 @@ export const star: Generator = {
   id: 'geo.star',
   name: 'Estrella',
   category: 'geometria',
+  also: ['simbolos'],
   description: 'Estrella de N puntas con proporción interior y redondeo.',
   keywords: ['estrella', 'estrellas', 'star'],
   params: [

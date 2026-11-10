@@ -34,6 +34,12 @@ src/
       build.ts          ayudas para armar nodos y estilos
       geometry.ts       geometría: rectángulo, círculo, polígono, estrella, arco, espiral, concéntricas, red, fractal
       organic.ts        blob, forma fluida, silueta irregular, geometría orgánica, ondas, curvas fluidas, cinta, composición abstracta
+      kit.ts            atajos para generadores: siluetas por perfil, círculos, orientación de contornos, nodos con estilo
+      botanicalExtra.ts rosa, hongo, cactus, suculenta, frutas y verduras, semillas, pasto, enredadera
+      landscape.ts      montañas, colinas y campos, nubes, sol, luna, agua, dunas, rocas, fuego, hielo, planeta
+      animals.ts        ave, mariposa, insectos, pez, cuadrúpedo, lagartija
+      objects.ts        casa, edificio, ventana, puerta, puente, torre, mueble, recipiente, herramienta, engranaje, silo/molino/tanque
+      symbols.ts        mandala, marco, emblema, ornamento, composición simétrica
       botanical.ts      girasol, margarita, flor, tulipán, hoja, rama, raíces, árbol, helecho
       agro.ts           espiga de trigo, planta de maíz
   render/svg.ts         Rendering Engine: escena → SVG (lo usan el lienzo, las miniaturas y la exportación)
@@ -60,7 +66,7 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Style Engine y 
 | 2. Motor procedural y geometría SVG | ✓ Hecha |
 | 3. Generadores botánicos | ✓ Hecha (11 figuras, incluye agro) |
 | 4. Generadores abstractos y geométricos | ✓ Hecha |
-| 5. Biblioteca de categorías | Pendiente |
+| 5. Biblioteca de categorías | ✓ Hecha (69 figuras en 8 categorías) |
 | 6. Estilos visuales | Pendiente |
 | 7. Prompts (reglas locales + Ollama opcional) | Pendiente |
 | 8. Variaciones y edición conversacional | Pendiente |
@@ -101,8 +107,15 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Style Engine y 
 - **Geometría nueva:** arco con grosor, red geométrica (cuadrada, triangular o panal, con nodos y deformación) y fractales (copo de Koch, triángulo y alfombra de Sierpinski, curva del dragón).
 - Los fractales tienen tope de profundidad por tipo y las curvas fluidas, tope de puntos, para que el SVG siga siendo manejable.
 
-### Etapa 5 (en curso): qué hay
+### Etapa 5: qué hay
 
-- **Botánica, segunda tanda:** rosa (abierta o capullo), hongo (sombreros variados, en grupo), cactus (columnar, barril o nopal, con maceta), suculenta, frutas y verduras (10 tipos), semillas y granos (pipa de girasol, maíz, poroto, almendra y trigo), pasto y hierbas, y enredadera.
-- **Paisaje:** montañas con nieve, colinas y campos con surcos, nubes, sol, luna con fases, río/lago/gota, dunas, piedras, fuego/fogata, copo de nieve o cristales, y planeta con anillo.
-- **Falta:** animales, arquitectura y objetos, y símbolos y ornamentos. Además, revisar en el navegador los últimos ajustes de paisaje (nubes, nieve de las montañas, cráteres de la luna).
+**69 figuras** en 8 categorías (algunas aparecen en dos, por ejemplo el girasol en Botánica y en Agro). La biblioteca tiene **buscador** que no distingue tildes y busca en nombre, descripción y palabras clave.
+
+- **Botánica, segunda tanda:** rosa (abierta o capullo), hongo (sombreros variados, en grupo), cactus (columnar, barril o nopal, con maceta), suculenta, frutas y verduras (10 tipos), semillas y granos (pipa de girasol, maíz, poroto, almendra, trigo), pasto y hierbas, enredadera.
+- **Paisaje:** montañas con nieve, colinas y campos con surcos, nubes, sol, luna con fases, río, lago o gota, dunas, piedras, fuego o fogata, copo de nieve o cristales, planeta con anillo.
+- **Animales:** ave (posada o volando), mariposa, insectos (abeja, escarabajo, hormiga, vaquita), pez, cuadrúpedo en silueta (perro, gato, caballo, ciervo, vaca o a medida) y lagartija. Las figuras de perfil pueden mirar a la derecha o a la izquierda.
+- **Arquitectura y objetos:** casa, edificio, ventana, puerta, puente (arcos, colgante, vigas), torre, mueble, recipiente (jarrón, ánfora, maceta, botella, taza, frasco, cuenco), herramienta, engranaje y, para el campo, silo, molino o tanque australiano.
+- **Símbolos y ornamentos:** mandala, marco, emblema o escudo, ornamento (volutas) y composición simétrica. La estrella, el sol, la luna, el fuego, el hielo y el engranaje también aparecen acá.
+- **Detalle técnico:** cuando varias formas van en un mismo path, todos los contornos se orientan en el mismo sentido (`clockwise` en kit.ts). Si no, donde se superponen aparecen agujeros.
+
+**Pendiente para más adelante (no bloquea):** más animales (mamíferos detallados, reptiles de perfil), más objetos cotidianos y más tipos de herramientas.

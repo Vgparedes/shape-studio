@@ -96,3 +96,18 @@ export function kit(ctx: GenContext) {
 export function clean(items: unknown[]): SceneNode[] {
   return items.filter((x): x is SceneNode => !!x && typeof x === 'object' && ((x as SceneNode).kind === 'group' ? (x as { children: SceneNode[] }).children.length > 0 : ((x as { d: string }).d ?? '').length > 0));
 }
+
+/**
+ * Orienta un contorno siempre en el mismo sentido (horario en pantalla).
+ * Cuando varias formas se juntan en un solo path, si unas van en un sentido y otras en el otro,
+ * donde se superponen aparecen agujeros. Esto lo evita.
+ */
+export function clockwise(pts: Pt[]): Pt[] {
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[(i + 1) % pts.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return area < 0 ? pts.slice().reverse() : pts;
+}
