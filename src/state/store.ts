@@ -48,6 +48,8 @@ interface State {
   /** Suma un nodo ya armado (por ejemplo, lo generado por un pedido) y lo selecciona. */
   addNode(node: SceneNode): void;
   addPromptEntry(entry: PromptEntry): void;
+  /** Reemplaza un nodo por otro (variación elegida, acción rápida) en un solo paso de deshacer. */
+  replaceNode(id: string, node: SceneNode): void;
 
   saveVersion(label: string): void;
   restoreVersion(id: string): void;
@@ -196,6 +198,10 @@ export const useStore = create<State>((set, get) => {
     addNode: (node) => {
       withDoc((d) => ({ ...d, nodes: [...d.nodes, node] }));
       set({ selection: [node.id] });
+    },
+    replaceNode: (id, node) => {
+      withDoc((d) => ({ ...d, nodes: mapNode(d.nodes, id, () => node) }));
+      if (node.id !== id) set({ selection: get().selection.map((s) => (s === id ? node.id : s)) });
     },
     addPromptEntry: (entry) => {
       const p = get().project;

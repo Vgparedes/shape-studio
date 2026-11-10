@@ -52,8 +52,10 @@ src/
     lexicon.ts          vocabulario: números, colores, partes, disposición
     local.ts            intérprete por reglas (sin servicios externos)
     ollama.ts           intérprete opcional con Ollama (modelo local), validado contra el catálogo
-    execute.ts          Composition Engine inicial: ejecuta el Plan y ubica las figuras
-    index.ts            orquesta: interpreta, ejecuta y guarda en el historial
+    execute.ts          Composition Engine inicial: ejecuta el Plan, celdas por disposición, ubicación
+    edit.ts             edición conversacional: interpreta instrucciones y las aplica solo a lo pedido
+    variations.ts       variaciones, aleatorio, simplificar, más detalle, estilo, paletas, reinterpretar
+    index.ts            orquesta: ¿pedido nuevo, edición o variaciones?, ejecuta y guarda en el historial
   render/svg.ts         Rendering Engine: escena → SVG (lo usan el lienzo, las miniaturas y la exportación)
   render/measure.ts     mide figuras con el motor SVG del navegador (centrar y encuadrar)
   export/export.ts      Export Engine: SVG, PNG y WEBP
@@ -81,7 +83,7 @@ El Composition Engine tiene una versión inicial (`prompt/execute.ts`) que se co
 | 5. Biblioteca de categorías | ✓ Hecha (69 figuras en 8 categorías) |
 | 6. Estilos visuales | ✓ Hecha (20 estilos) |
 | 7. Prompts (reglas locales + Ollama opcional) | ✓ Hecha |
-| 8. Variaciones y edición conversacional | Pendiente |
+| 8. Variaciones y edición conversacional | ✓ Hecha |
 | 9. Editor manual completo | Parcial (mover, capas, deshacer) |
 | 10. Referencias visuales y exportación | Exportación SVG / PNG / WEBP hecha |
 
@@ -172,5 +174,23 @@ Barra de **pedidos** debajo del lienzo: escribís lo que querés y se genera. En
   - Desde GitHub Pages, Ollama tiene que arrancar con `OLLAMA_ORIGINS=https://vgparedes.github.io`.
   - **No se probó con un modelo real**: en la compu de desarrollo no está instalado. Sí se probó que avise cuando falla y que siga con el intérprete local.
 - **Límites actuales:**
-  - Cada pedido arma su composición sobre toda la mesa de trabajo, aunque ya haya otras cosas. Combinar con lo existente y editar por instrucciones ("hacé las hojas más chicas") llega en la etapa 8.
+  - Cada pedido nuevo arma su composición sobre toda la mesa de trabajo, aunque ya haya otras cosas. Ubicarlo en un lugar libre o en una zona elegida queda para la etapa 9.
   - El intérprete local no entiende relaciones espaciales finas ("una luna arriba a la izquierda del árbol").
+
+### Etapa 8: qué hay
+
+- **Alternativas automáticas.** Cada generación muestra la original y 5 variaciones arriba de la barra: otras semillas, proporciones y formas movidas, otra disposición, o todo junto. Se elige una con un toque; la primera vuelve a la que tenías y también se puede deshacer. "Otras" genera otra tanda.
+- **Acciones rápidas** sobre lo seleccionado (o, si no hay nada, lo último generado): Variaciones, Aleatorio, Simplificar, Más detalle, Cambiar estilo, Cambiar colores (paleta automática análoga, complementaria o triádica, que conserva contornos y verdes) y Reinterpretar (vuelve a leer el pedido con otras decisiones).
+- **Edición conversacional.** Escribís la instrucción en la misma barra y se aplica solo a lo pedido, sin perder lo demás. Funcionan todos los ejemplos del pedido:
+  - "hacé las hojas más pequeñas", "agregá tres flores más", "quiero que todas miren hacia la derecha"
+  - "simplificá los pétalos", "hacé las raíces más ramificadas", "cambiá el estilo a dotwork"
+  - "quiero una versión más geométrica", "mantené la composición pero hacé las figuras más orgánicas"
+  - "hacé los pétalos más finos", "agregá hojas…", "invertí la orientación de las flores"
+  - "quiero raíces más largas y ramificadas", "reducí el detalle", "hacé el tallo más curvo"
+  - "cambiá todos los trazos a verde oliva", "conservá las figuras, pero distribuilas de otra manera"
+  - También entiende colores por parte ("pétalos rojos"), cantidades ("con 12 pétalos"), sacar partes ("sacá las raíces"), "más/menos", "cabizbajas", tamaño general y "dame variaciones".
+- **Edición por partes.** Si seleccionás una parte en Capas (por ejemplo, "Hojas" de un girasol), la instrucción se aplica solo a esa parte: "más grandes" agranda solo las hojas.
+- **Decide sola si sumar figuras o partes.** "Agregá tres flores" en un grupo de girasoles suma girasoles; "agregá hojas" suma hojas a cada planta.
+- **Cada edición es un solo paso de deshacer** y queda en el historial con lo que se cambió (por ejemplo, "Hojas: largo −30 %").
+- **Avisa lo que no puede hacer.** Por ejemplo, "agregá hojas en la parte inferior" suma hojas pero avisa que la ubicación sobre el tallo todavía no se puede elegir.
+- **Para tener en cuenta.** Reinterpretar vuelve a armar desde el texto del pedido, así que descarta las ediciones hechas después (se pueden recuperar con deshacer).

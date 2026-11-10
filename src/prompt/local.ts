@@ -16,9 +16,9 @@ const STOP = new Set(
 // Palabras de estilo que también son de contenido: solo cuentan como estilo con "estilo", "tipo", "versión", "más".
 const AMBIGUOUS_STYLE = new Set(['geometrico', 'geometric', 'organico', 'organic', 'botanico', 'botanical', 'abstracto', 'abstracta', 'abstract', 'solido', 'relleno', 'silueta', 'siluetas', 'plano', 'simple', 'limpio', 'lineal', 'linea', 'trazo', 'tecnico', 'technical', 'contorno', 'moderno', 'clasico', 'antiguo', 'viejo', 'blando', 'fluido', 'ondulado', 'volumen', '3d', 'dibujo', 'puntos', 'dots', 'relieve', 'sticker']);
 
-type Tok = { w: string; s: string; clause: number; /** primera palabra después de una coma */ brk: boolean };
+export type Tok = { w: string; s: string; clause: number; /** primera palabra después de una coma */ brk: boolean };
 
-function tokenize(text: string): Tok[] {
+export function tokenize(text: string): Tok[] {
   const out: Tok[] = [];
   norm(text)
     .split(/[.;:!?\n]+/)
@@ -33,7 +33,7 @@ function tokenize(text: string): Tok[] {
   return out;
 }
 
-const same = (t: Tok, word: string) => t.w === word || t.s === word || t.s === singular(word) || (t.w.endsWith('es') && t.w.slice(0, -2) === word);
+export const same = (t: Tok, word: string) => t.w === word || t.s === word || t.s === singular(word) || (t.w.endsWith('es') && t.w.slice(0, -2) === word);
 
 /** Palabras clave que suelen ser adjetivos: solo crean figura si no hay ninguna otra figura nombrada. */
 const WEAK = new Set(['organica', 'organico', 'abstracta', 'abstracto', 'asimetrica', 'irregular', 'curva', 'fluida', 'fluido', 'geometrica', 'simetrica', 'simetrico', 'radial', 'decorativo', 'adorno', 'silueta', 'campo', 'cielo', 'noche', 'invierno', 'mar', 'industrial', 'mecanico', 'conjunto', 'liquido', 'espacio', 'animal', 'mamifero']);
@@ -51,7 +51,7 @@ interface Mention {
   weak: boolean;
 }
 
-function generatorIndex(): { words: string[]; gen: Generator }[] {
+export function generatorIndex(): { words: string[]; gen: Generator }[] {
   const idx: { words: string[]; gen: Generator }[] = [];
   for (const g of listGenerators()) {
     for (const k of [...g.keywords, g.name]) {
@@ -78,7 +78,7 @@ function numberBefore(toks: Tok[], i: number, floor: number, rng: Rng): number |
 }
 
 /** Color en las palabras [from, to): devuelve el HEX y las posiciones usadas. */
-function colorAt(toks: Tok[], i: number): { hex: string; len: number } | null {
+export function colorAt(toks: Tok[], i: number): { hex: string; len: number } | null {
   for (const len of [2, 1]) {
     if (i + len > toks.length) continue;
     const phrase = toks.slice(i, i + len).map((t) => t.w).join(' ');
@@ -102,7 +102,7 @@ function lighten(hex: string, k: number): string {
   return '#' + ch.map((c) => c.toString(16).padStart(2, '0')).join('');
 }
 
-const MAIN_COLOR = ['petalColor', 'fill', 'color', 'bodyColor', 'capColor', 'planetColor', 'sunColor', 'moonColor', 'waterColor', 'wallColor', 'mainColor', 'gearColor', 'grainColor', 'cloudColor', 'iceColor', 'rockColor', 'sandColor', 'front', 'trunkColor', 'leafColor', 'nearColor', 'c1'];
+export const MAIN_COLOR = ['petalColor', 'fill', 'color', 'bodyColor', 'capColor', 'planetColor', 'sunColor', 'moonColor', 'waterColor', 'wallColor', 'mainColor', 'gearColor', 'grainColor', 'cloudColor', 'iceColor', 'rockColor', 'sandColor', 'front', 'trunkColor', 'leafColor', 'nearColor', 'c1'];
 
 export function interpretLocal(text: string, seed: number): Plan {
   const rng = createRng(seed);

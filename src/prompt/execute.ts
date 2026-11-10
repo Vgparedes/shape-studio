@@ -1,17 +1,17 @@
 // Composition Engine (versión inicial): ejecuta un Plan y arma las figuras ubicadas
 // en la mesa de trabajo según la disposición pedida (fila, grilla, círculo, dispersas, agrupadas).
 import type { GroupNode, Scene, SceneNode } from '../core/types';
-import { createRng } from '../core/random';
+import { createRng, type Rng } from '../core/random';
 import { IDENTITY, newId } from '../core/scene';
 import { createFromGenerator, getGenerator } from '../engine/generators';
 import { newFx, getStyle, styleDefaults } from '../engine/style';
 import { measureLocal } from '../render/measure';
-import type { Plan } from './types';
+import type { Layout, Plan } from './types';
 
 const MAX_INSTANCES = 40;
 const MAIN_COLOR = ['petalColor', 'fill', 'color', 'bodyColor', 'capColor', 'planetColor', 'sunColor', 'moonColor', 'waterColor', 'wallColor', 'mainColor', 'gearColor', 'grainColor', 'cloudColor', 'iceColor', 'rockColor', 'sandColor', 'front', 'trunkColor', 'leafColor', 'nearColor'];
 // Figuras que "apoyan" en el piso: en fila se alinean por la base.
-const GROUNDED = new Set(['botanica', 'agro', 'objetos']);
+export const GROUNDED = new Set(['botanica', 'agro', 'objetos']);
 
 export function executePlan(plan: Plan, doc: Scene, seed: number, text: string): GroupNode | null {
   const rng = createRng(seed);
@@ -35,14 +35,49 @@ export function executePlan(plan: Plan, doc: Scene, seed: number, text: string):
   if (!instances.length) return null;
 
   const N = instances.length;
+  const spacing = plan.spacing;
+  const cells = layoutCells(N, plan.layout, doc, spacing, rng);
+
+  const children: SceneNode[] = [];
+  const counter = new Map<string, number>();
+  instances.forEach((inst, i) => {
+    const g = getGenerator(inst.gen)!;
+    const node = createFromGenerator(inst.gen, { params: inst.params as never, seed: Math.floor(rng.next() * 2 ** 31) });
+    if (!node) return;
+    const n = (counter.get(g.id) ?? 0) + 1;
+    counter.set(g.id, n);
+    node.name = instances.filter((x) => x.gen === inst.gen).length > 1 ? `${g.name} ${n}` : g.name;
+    placeInCell(node, cells[i], { spacing, scale: inst.scale, sizeVariation: plan.sizeVariation, grounded: GROUNDED.has(g.category) }, rng);
+    children.push(node);
+  });
+
+  const group: GroupNode = {
+    id: newId(),
+    name: `«${text.trim().slice(0, 48)}${text.trim().length > 48 ? '…' : ''}»`,
+    kind: 'group',
+    children,
+    transform: { ...IDENTITY },
+    opacity: 1,
+    hidden: false,
+    locked: false,
+    prompt: { text, plan, seed },
+  };
+  if (plan.style && getStyle(plan.style.id)) {
+    const fx = newFx(plan.style.id, seed)!;
+    fx.params = { ...styleDefaults(getStyle(plan.style.id)!), ...plan.style.params };
+    group.fx = fx;
+  }
+  return group;
+}
+
+export type Cell = { cx: number; cy: number; w: number; h: number; base?: number };
+
+/** Celdas de la mesa de trabajo según la disposición (fila, grilla, círculo, dispersas, agrupadas). */
+export function layoutCells(N: number, layoutIn: Layout, doc: Scene, spacing: number, rng: Rng): Cell[] {
   const margin = Math.min(doc.width, doc.height) * 0.06;
   const area = { x: margin, y: margin, w: doc.width - margin * 2, h: doc.height - margin * 2 };
-  const spacing = plan.spacing;
-
-  // Celdas según la disposición.
-  type Cell = { cx: number; cy: number; w: number; h: number; base?: number };
   const cells: Cell[] = [];
-  const layout = N === 1 ? 'single' : plan.layout;
+  const layout = N === 1 ? 'single' : layoutIn;
   if (layout === 'single') cells.push({ cx: area.x + area.w / 2, cy: area.y + area.h / 2, w: area.w * 0.8, h: area.h * 0.85 });
   else if (layout === 'row' || layout === 'column') {
     for (let i = 0; i < N; i++) {
@@ -92,46 +127,22 @@ export function executePlan(plan: Plan, doc: Scene, seed: number, text: string):
     }
   }
 
-  const children: SceneNode[] = [];
-  const counter = new Map<string, number>();
-  instances.forEach((inst, i) => {
-    const g = getGenerator(inst.gen)!;
-    const node = createFromGenerator(inst.gen, { params: inst.params as never, seed: Math.floor(rng.next() * 2 ** 31) });
-    if (!node) return;
-    const n = (counter.get(g.id) ?? 0) + 1;
-    counter.set(g.id, n);
-    node.name = instances.filter((x) => x.gen === inst.gen).length > 1 ? `${g.name} ${n}` : g.name;
-    const box = measureLocal(node) ?? { x: -50, y: -50, width: 100, height: 100 };
-    const cell = cells[i];
-    const fill = 0.92 - spacing * 0.3;
-    let s = Math.min((cell.w * fill) / Math.max(1, box.width), (cell.h * fill) / Math.max(1, box.height));
-    s *= inst.scale * (1 + rng.jitter(plan.sizeVariation * 0.45));
-    s = Math.max(0.05, Math.min(3, s));
-    const grounded = cell.base !== undefined && GROUNDED.has(g.category);
-    node.transform = {
-      ...IDENTITY,
-      scale: Math.round(s * 1000) / 1000,
-      x: cell.cx - (box.x + box.width / 2) * s,
-      y: grounded ? cell.base! - (box.y + box.height) * s : cell.cy - (box.y + box.height / 2) * s,
-    };
-    children.push(node);
-  });
+  return cells;
+}
 
-  const group: GroupNode = {
-    id: newId(),
-    name: `«${text.trim().slice(0, 48)}${text.trim().length > 48 ? '…' : ''}»`,
-    kind: 'group',
-    children,
-    transform: { ...IDENTITY },
-    opacity: 1,
-    hidden: false,
-    locked: false,
-    prompt: { text, plan, seed },
+/** Escala y ubica una figura dentro de su celda (las que "apoyan" se alinean por la base en fila). */
+export function placeInCell(node: SceneNode, cell: Cell, o: { spacing: number; scale: number; sizeVariation: number; grounded: boolean }, rng: Rng) {
+  const box = measureLocal({ ...node, transform: { ...IDENTITY } }) ?? { x: -50, y: -50, width: 100, height: 100 };
+  const fill = 0.92 - o.spacing * 0.3;
+  let s = Math.min((cell.w * fill) / Math.max(1, box.width), (cell.h * fill) / Math.max(1, box.height));
+  s *= o.scale * (1 + rng.jitter(o.sizeVariation * 0.45));
+  s = Math.max(0.05, Math.min(3, s));
+  const grounded = cell.base !== undefined && o.grounded;
+  node.transform = {
+    ...IDENTITY,
+    rotation: 0,
+    scale: Math.round(s * 1000) / 1000,
+    x: cell.cx - (box.x + box.width / 2) * s,
+    y: grounded ? cell.base! - (box.y + box.height) * s : cell.cy - (box.y + box.height / 2) * s,
   };
-  if (plan.style && getStyle(plan.style.id)) {
-    const fx = newFx(plan.style.id, seed)!;
-    fx.params = { ...styleDefaults(getStyle(plan.style.id)!), ...plan.style.params };
-    group.fx = fx;
-  }
-  return group;
 }

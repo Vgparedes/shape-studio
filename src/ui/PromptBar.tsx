@@ -1,6 +1,11 @@
 // Barra de pedidos (debajo del lienzo): campo de texto, historial del proyecto e intérprete elegido.
-import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, Cpu, History, Loader2, RotateCcw, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { SceneNode } from '../core/types';
+import { ChevronUp, Cpu, Dices, History, Layers3, Loader2, Minimize2, Palette, Plus, RotateCcw, Shuffle, Sparkles, Wand2 } from 'lucide-react';
+import { editTargets } from '../prompt/edit';
+import { adjustDetail, applyPalette, changeStyle, randomPalette, randomize, reinterpret } from '../prompt/variations';
+import { showVariations } from '../prompt';
+import { VariantsPanel } from './VariantsPanel';
 import { useStore } from '../state/store';
 import { generateFromPrompt } from '../prompt';
 import { DEFAULT_OLLAMA, listModels, loadOllama, saveOllama, type OllamaSettings } from '../prompt/ollama';
@@ -87,6 +92,56 @@ function OllamaDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Acciones rápidas sobre lo seleccionado (o lo último generado). */
+function ActionBar() {
+  const hasNodes = useStore((s) => (s.project?.doc.nodes.length ?? 0) > 0);
+  const selection = useStore((s) => s.selection);
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!hasNodes) return null;
+  const run = (label: string, fn: (n: SceneNode) => SceneNode | null, all = true) => {
+    const st = useStore.getState();
+    const doc = st.project!.doc;
+    const t = editTargets(doc, st.selection);
+    const ids = all ? t.ids : t.ids.slice(0, 1);
+    let nodes = doc.nodes;
+    for (const id of ids) nodes = applyNested(nodes, id, fn);
+    // Un solo paso de deshacer para todo.
+    if (nodes !== doc.nodes) st.setDoc({ ...doc, nodes });
+    setMsg(`${label}: ${t.label}`);
+    setTimeout(() => setMsg(null), 2500);
+  };
+  const actions: { label: string; icon: ReactNode; title: string; onClick: () => void }[] = [
+    { label: 'Variaciones', icon: <Layers3 size={13} />, title: 'Ver alternativas de lo seleccionado', onClick: () => showVariations(editTargets(useStore.getState().project!.doc, useStore.getState().selection).ids[0]) },
+    { label: 'Aleatorio', icon: <Dices size={13} />, title: 'Otra semilla y parámetros movidos', onClick: () => run('Aleatorio', randomize) },
+    { label: 'Simplificar', icon: <Minimize2 size={13} />, title: 'Menos detalle', onClick: () => run('Simplificado', (n) => adjustDetail(n, false)) },
+    { label: 'Más detalle', icon: <Plus size={13} />, title: 'Más detalle', onClick: () => run('Más detalle', (n) => adjustDetail(n, true)) },
+    { label: 'Cambiar estilo', icon: <Wand2 size={13} />, title: 'Otro estilo visual al azar', onClick: () => run('Estilo nuevo', changeStyle) },
+    { label: 'Cambiar colores', icon: <Palette size={13} />, title: 'Otra paleta de colores', onClick: () => run('Colores nuevos', (n) => applyPalette(n, randomPalette())) },
+    { label: 'Reinterpretar', icon: <Shuffle size={13} />, title: 'Volver a leer el pedido con otras decisiones', onClick: () => run('Reinterpretado', (n) => reinterpret(n, useStore.getState().project!.doc), false) },
+  ];
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto px-2 pt-2" aria-label="Acciones rápidas">
+      <span className="shrink-0 text-[11px] text-ink-3">{selection.length ? 'Sobre lo seleccionado:' : 'Sobre lo último generado:'}</span>
+      {actions.map((a) => (
+        <button key={a.label} type="button" title={a.title} onClick={a.onClick} className="flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[11px] text-ink-2 ring-1 ring-line hover:bg-panel-2 hover:text-ink">
+          {a.icon}
+          {a.label}
+        </button>
+      ))}
+      {msg && <span className="shrink-0 text-[11px] text-ink-2">✓ {msg}</span>}
+    </div>
+  );
+}
+
+/** Reemplaza un nodo que puede estar anidado. */
+function applyNested(nodes: SceneNode[], id: string, fn: (n: SceneNode) => SceneNode | null): SceneNode[] {
+  return nodes.map((n) => {
+    if (n.id === id) return fn(n) ?? n;
+    if (n.kind === 'group') return { ...n, children: applyNested(n.children, id, fn) };
+    return n;
+  });
+}
+
 export function PromptBar() {
   const prompts = useStore((s) => s.project?.prompts) ?? NO_PROMPTS;
   const [text, setText] = useState('');
@@ -115,6 +170,7 @@ export function PromptBar() {
 
   return (
     <div className="shrink-0 border-t border-line bg-panel">
+      <VariantsPanel />
       {open && (
         <div ref={listRef} className="max-h-[38vh] overflow-y-auto border-b border-line px-3 py-2">
           {prompts.length === 0 ? (
@@ -153,6 +209,7 @@ export function PromptBar() {
           )}
         </div>
       )}
+      <ActionBar />
       <form
         className="flex items-end gap-2 px-2 py-2"
         onSubmit={(e) => {
