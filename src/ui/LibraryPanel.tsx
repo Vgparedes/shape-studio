@@ -7,6 +7,7 @@ import { nodeMarkup } from '../render/svg';
 import { measureLocal } from '../render/measure';
 import { useStore } from '../state/store';
 import { Section } from './controls';
+import { StylesPanel } from './StylesPanel';
 
 function thumbnail(id: string): string {
   const node = createFromGenerator(id, { seed: 1 });
@@ -33,11 +34,34 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
     return CATEGORIES.map((c) => ({ ...c, items: all.filter((g) => g.category === c.id || (!q && g.also?.includes(c.id))).map((g) => ({ g, thumb: thumbs.get(g.id) ?? '' })) })).filter((c) => c.items.length);
   }, [query, thumbs]);
 
+  const [tab, setTab] = useState<'shapes' | 'styles'>('shapes');
   return (
     <div className="flex h-full flex-col">
+      <div className="flex shrink-0 gap-1 border-b border-line px-2 pt-1.5" role="tablist">
+        {(
+          [
+            ['shapes', 'Figuras'],
+            ['styles', 'Estilos'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            type="button"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`-mb-px h-9 flex-1 border-b-2 text-[12px] ${tab === id ? 'border-accent font-semibold text-ink' : 'border-transparent text-ink-2 hover:text-ink'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'styles' ? (
+        <StylesPanel />
+      ) : (
+        <>
       <div className="border-b border-line px-3 py-2.5">
-        <h2 className="text-[13px] font-semibold text-ink">Biblioteca</h2>
-        <p className="mt-0.5 text-[11px] leading-snug text-ink-3">Tocá una figura para sumarla al centro de la mesa de trabajo.</p>
+        <p className="text-[11px] leading-snug text-ink-3">Tocá una figura para sumarla al centro de la mesa de trabajo.</p>
         <div className="mt-2 flex items-center gap-1.5 rounded-md bg-panel-2 px-2 ring-1 ring-line focus-within:ring-accent">
           <Search size={13} className="shrink-0 text-ink-3" aria-hidden="true" />
           <input
@@ -82,6 +106,8 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
         ))}
         {groups.length === 0 && <p className="px-3 py-4 text-[12px] leading-relaxed text-ink-3">No hay figuras para «{query}». Probá con otra palabra (por ejemplo: flor, montaña, pez, casa).</p>}
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -24,6 +24,11 @@ src/
       ribbon.ts         cintas: línea central → forma rellena de grosor variable
       branching.ts      ramificación recursiva (árboles, raíces), con tope de segmentos
     organic/shapes.ts   Organic Shape Engine: blobs (radio por armónicos) y superfórmula
+    geometry/flatten.ts recorre cualquier path SVG (curvas, arcos, relativos) y lo pasa a polilíneas
+    style/              Style Engine
+      geometry.ts       adentro/afuera, tramos (scanline), grillas, tramas, simplificación, ondulado
+      styles.ts         los 20 estilos
+      index.ts          aplica el estilo al dibujar y exportar, con caché
     botanical/          Botanical Engine
       leaf.ts           hojas y pétalos: perfiles de forma, curvatura, borde dentado, nervaduras
       flowerHead.ts     cabeza de flor en 3D proyectada (de frente, perfil, tres cuartos, cabizbaja)
@@ -56,7 +61,7 @@ Cada nodo generado guarda `source = { generator, params, seed }`. Por eso se pue
 
 Las plantas separan sus partes en grupos con nombre y un `role` (`petals`, `center`, `stem`, `leaves`, `roots`...). Los parámetros también van agrupados por parte (`group`), y el panel los muestra así. La edición por prompts va a usar ambas cosas para tocar solo lo que se pide.
 
-Módulos que llegan en las próximas etapas: Prompt Interpreter, Style Engine y Composition Engine (la composición abstracta ya trae una versión simple de ubicación con equilibrio).
+Módulos que llegan en las próximas etapas: Prompt Interpreter y Composition Engine (la composición abstracta ya trae una versión simple de ubicación con equilibrio).
 
 ## Etapas
 
@@ -67,7 +72,7 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Style Engine y 
 | 3. Generadores botánicos | ✓ Hecha (11 figuras, incluye agro) |
 | 4. Generadores abstractos y geométricos | ✓ Hecha |
 | 5. Biblioteca de categorías | ✓ Hecha (69 figuras en 8 categorías) |
-| 6. Estilos visuales | Pendiente |
+| 6. Estilos visuales | ✓ Hecha (20 estilos) |
 | 7. Prompts (reglas locales + Ollama opcional) | Pendiente |
 | 8. Variaciones y edición conversacional | Pendiente |
 | 9. Editor manual completo | Parcial (mover, capas, deshacer) |
@@ -119,3 +124,20 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Style Engine y 
 - **Detalle técnico:** cuando varias formas van en un mismo path, todos los contornos se orientan en el mismo sentido (`clockwise` en kit.ts). Si no, donde se superponen aparecen agujeros.
 
 **Pendiente para más adelante (no bloquea):** más animales (mamíferos detallados, reptiles de perfil), más objetos cotidianos y más tipos de herramientas.
+
+### Etapa 6: qué hay
+
+**20 estilos** en la pestaña *Estilos* del panel izquierdo, cada uno con vista previa real: Line Art, Outline, Solid, Minimalist, Botanical, Geometric, Organic, Dotwork, Stippling, Halftone, Engraving, Sketch, Hand Drawn, Vintage, Technical Illustration, Monochrome, Flat Illustration, Duotone, Isometric y Abstract.
+
+- **Rehacen la geometría, no solo el color.** Por ejemplo:
+  - Dotwork rellena con puntos que crecen en la sombra.
+  - Engraving traza líneas paralelas que engordan en las zonas oscuras, con contrahachurado.
+  - Geometric pasa las curvas a facetas.
+  - Isometric lleva la figura a 30° y le da espesor.
+  - Technical agrega cotas y ejes.
+- **No destructivos.** El estilo se guarda aparte de la figura (`fx` en el nodo) y se aplica al dibujar y al exportar. Se puede cambiar, ajustar o sacar sin perder la figura ni sus parámetros. Si después regenerás la figura (otra semilla, más pétalos), el estilo se vuelve a aplicar solo.
+- **Se aplica a lo seleccionado, o a todas las figuras** si no hay nada seleccionado. Cada estilo tiene sus parámetros en *Propiedades* (densidad, ángulo de la trama, dirección de la luz, tinta única o color de cada parte, fondo de papel), más "Otra variación del estilo" y "Quitar estilo". Todo se puede deshacer.
+- **Luz y sombreado.** Los estilos de puntos y tramas usan el tono de cada parte más un degradé de luz (ángulo configurable). Así la sombra cae de un lado, como en un grabado.
+- **Exportación.** El SVG sale con la geometría estilizada real (paths), sin imágenes adentro.
+- **Rendimiento.** Los paths se recorren y se recortan en JavaScript puro (scanline con regla nonzero), sin consultar al navegador punto por punto. Un girasol con Dotwork o Engraving tarda unos 15 ms. Además, el lienzo se redibuja con prioridad baja para que los sliders no se traben.
+- **Para tener en cuenta:** Monochrome y Duotone trabajan sobre todo con el color: Duotone suma trama de puntos solo en los medios tonos y Monochrome agrupa los tonos en niveles.

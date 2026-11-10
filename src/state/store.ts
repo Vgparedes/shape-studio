@@ -5,6 +5,8 @@ import type { ParamValues, Project, Scene, SceneNode } from '../core/types';
 import { cloneNode, findNode, locate, mapNode, newId, removeNodes, reorderNode } from '../core/scene';
 import { createFromGenerator, regenerateNode } from '../engine/generators';
 import { measureLocal } from '../render/measure';
+import { newFx } from '../engine/style';
+import { randomSeed } from '../core/random';
 
 const HISTORY_LIMIT = 150;
 
@@ -37,6 +39,11 @@ interface State {
   duplicateSelection(): void;
   reorder(id: string, delta: number): void;
   nudgeSelection(dx: number, dy: number): void;
+
+  /** Aplica un estilo visual a lo seleccionado o, si no hay nada seleccionado, a todas las figuras. */
+  applyStyle(styleId: string): void;
+  updateFx(id: string, patch: { params?: ParamValues; seed?: number }, opts?: { history?: boolean }): void;
+  removeFx(id: string): void;
 
   saveVersion(label: string): void;
   restoreVersion(id: string): void;
@@ -156,6 +163,31 @@ export const useStore = create<State>((set, get) => {
         return { ...d, nodes };
       });
     },
+
+    applyStyle: (styleId) => {
+      const p = get().project;
+      if (!p) return;
+      const targets = get().selection.length ? get().selection : p.doc.nodes.map((n) => n.id);
+      withDoc((d) => {
+        let nodes = d.nodes;
+        for (const id of targets)
+          nodes = mapNode(nodes, id, (n) => {
+            // Si ya tenía este mismo estilo, se conservan sus ajustes.
+            if (n.fx?.style === styleId) return n;
+            const fx = newFx(styleId, randomSeed());
+            return fx ? { ...n, fx } : n;
+          });
+        return { ...d, nodes };
+      });
+    },
+    updateFx: (id, patch, opts) =>
+      get().updateNode(id, (n) => (n.fx ? { ...n, fx: { ...n.fx, params: patch.params ?? n.fx.params, seed: patch.seed ?? n.fx.seed } } : n), opts),
+    removeFx: (id) =>
+      get().updateNode(id, (n) => {
+        const { fx: _fx, ...rest } = n;
+        void _fx;
+        return rest as SceneNode;
+      }),
 
     saveVersion: (label) => {
       const p = get().project;

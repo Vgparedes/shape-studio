@@ -30,7 +30,14 @@ interface NodeBase {
   source?: Source;
   /** Qué parte es dentro de su figura (pétalos, hojas, tallo...). La edición por prompts la usa para saber qué tocar. */
   role?: string;
+  /**
+   * Estilo visual aplicado (dotwork, grabado, line art...). No reemplaza la geometría guardada:
+   * se aplica al dibujar y al exportar, así se puede cambiar o sacar sin perder la figura original.
+   */
+  fx?: StyleFx;
 }
+
+export type StyleFx = { style: string; params: ParamValues; seed: number };
 
 export interface PathNode extends NodeBase {
   kind: 'path';

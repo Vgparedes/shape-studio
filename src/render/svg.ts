@@ -1,6 +1,7 @@
 // Rendering Engine: convierte la escena en marcado SVG. El mismo código dibuja el lienzo,
 // las miniaturas y el archivo exportado, así lo que se ve es exactamente lo que se baja.
 import type { Scene, SceneNode, Style, Transform } from '../core/types';
+import { applyFx } from '../engine/style';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -42,8 +43,10 @@ function layerId(name: string, used: Set<string>): string {
 
 type Mode = { canvas: boolean; used: Set<string> };
 
-function nodeToSvg(n: SceneNode, mode: Mode, top: boolean): string {
-  if (n.hidden) return '';
+function nodeToSvg(node: SceneNode, mode: Mode, top: boolean): string {
+  if (node.hidden) return '';
+  // Si tiene un estilo visual, se dibuja la versión estilizada (geometría nueva, mismo id y posición).
+  const n = node.fx ? applyFx(node) : node;
   let attrs = transformAttr(n.transform);
   if (n.opacity < 1) attrs += ` opacity="${r2(n.opacity)}"`;
   if (mode.canvas) {

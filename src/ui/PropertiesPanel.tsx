@@ -4,6 +4,7 @@ import { Copy, Dices, Trash2 } from 'lucide-react';
 import type { ParamValues, Scene, SceneNode, Style } from '../core/types';
 import { randomSeed } from '../core/random';
 import { getGenerator } from '../engine/generators';
+import { getStyle, styleDefaults } from '../engine/style';
 import type { ParamDef } from '../engine/generators/types';
 import { useSelectedNodes, useStore } from '../state/store';
 import { Button, ColorField, Field, NumberInput, Section, Slider } from './controls';
@@ -121,6 +122,36 @@ function GeneratorParams({ node }: { node: SceneNode }) {
   );
 }
 
+function StyleFxParams({ node }: { node: SceneNode }) {
+  const updateFx = useStore((s) => s.updateFx);
+  const removeFx = useStore((s) => s.removeFx);
+  const g = useGesture();
+  if (!node.fx) return null;
+  const fx = node.fx;
+  const def = getStyle(fx.style);
+  if (!def) return null;
+  const params = { ...styleDefaults(def), ...fx.params };
+  const set = (key: string) => (value: ParamValues[string], live = false) => updateFx(node.id, { params: { ...params, [key]: value } }, g.opts(live));
+  return (
+    <Section
+      title={`Estilo · ${def.name}`}
+      right={
+        <button type="button" className="h-7 rounded px-2 text-[11px] text-danger hover:bg-danger/15" onClick={() => removeFx(node.id)}>
+          Quitar estilo
+        </button>
+      }
+    >
+      <p className="text-[11px] leading-relaxed text-ink-3">{def.description}</p>
+      {def.params.map((p) => (
+        <ParamControl key={p.key} p={p} value={params[p.key] ?? p.default} set={set(p.key)} end={() => g.end()} />
+      ))}
+      <Button onClick={() => updateFx(node.id, { seed: randomSeed() })}>
+        <Dices size={14} /> Otra variación del estilo
+      </Button>
+    </Section>
+  );
+}
+
 function NodeProps({ node }: { node: SceneNode }) {
   const update = useStore((s) => s.updateNode);
   const g = useGesture();
@@ -135,6 +166,7 @@ function NodeProps({ node }: { node: SceneNode }) {
 
   return (
     <>
+      <StyleFxParams node={node} />
       <GeneratorParams node={node} />
       <Section title="Transformación">
         <div className="grid grid-cols-2 gap-2">

@@ -1,6 +1,6 @@
 // Lienzo de trabajo: dibuja la escena, permite seleccionar y mover figuras,
 // desplazar (arrastrando el fondo, con la rueda o con espacio) y hacer zoom (Ctrl + rueda, pellizco o botones).
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Maximize, Minus, Plus } from 'lucide-react';
 import type { Scene } from '../core/types';
 import { mapNode } from '../core/scene';
@@ -31,7 +31,10 @@ export function Canvas() {
   const [space, setSpace] = useState(false);
   const [panning, setPanning] = useState(false);
 
-  const html = useMemo(() => sceneContent(doc, true), [doc]);
+  // Los estilos (dotwork, grabado...) pueden tardar: el lienzo se redibuja con prioridad baja
+  // para que sliders y arrastres sigan respondiendo.
+  const deferredDoc = useDeferredValue(doc);
+  const html = useMemo(() => sceneContent(deferredDoc, true), [deferredDoc]);
 
   // Tamaño del área visible.
   useLayoutEffect(() => {
