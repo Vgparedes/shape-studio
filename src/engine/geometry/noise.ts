@@ -29,3 +29,24 @@ export function fbm1D(rng: Rng, octaves = 3): (x: number) => number {
     return sum / total;
   };
 }
+
+/** Ruido de valor 2D en [-1, 1], suave (para campos de flujo y texturas). */
+export function noise2D(rng: Rng): (x: number, y: number) => number {
+  const perm = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(rng.next() * (i + 1));
+    [perm[i], perm[j]] = [perm[j], perm[i]];
+  }
+  const vals = Array.from({ length: 256 }, () => rng.next() * 2 - 1);
+  const h = (x: number, y: number) => vals[perm[(perm[x & 255] + y) & 255]];
+  const s = (t: number) => t * t * (3 - 2 * t);
+  return (x: number, y: number) => {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const fx = s(x - xi);
+    const fy = s(y - yi);
+    const a = h(xi, yi) + (h(xi + 1, yi) - h(xi, yi)) * fx;
+    const b = h(xi, yi + 1) + (h(xi + 1, yi + 1) - h(xi, yi + 1)) * fx;
+    return a + (b - a) * fy;
+  };
+}

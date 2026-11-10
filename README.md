@@ -19,10 +19,11 @@ src/
     geometry/           Procedural Generation Engine
       path.ts           primitivas: polígonos, curvas suaves (Catmull-Rom → Bézier), elipses...
       vec.ts            vectores 2D y 3D
-      noise.ts          ruido suave con semilla (ondulaciones naturales)
+      noise.ts          ruido suave con semilla, 1D y 2D (ondulaciones, campos de flujo)
       curve.ts          curvas que crecen cambiando de rumbo (tallos, ramas, raíces), con tropismo
       ribbon.ts         cintas: línea central → forma rellena de grosor variable
       branching.ts      ramificación recursiva (árboles, raíces), con tope de segmentos
+    organic/shapes.ts   Organic Shape Engine: blobs (radio por armónicos) y superfórmula
     botanical/          Botanical Engine
       leaf.ts           hojas y pétalos: perfiles de forma, curvatura, borde dentado, nervaduras
       flowerHead.ts     cabeza de flor en 3D proyectada (de frente, perfil, tres cuartos, cabizbaja)
@@ -31,7 +32,8 @@ src/
       types.ts          el contrato Generator
       index.ts          registro + crear / regenerar nodos
       build.ts          ayudas para armar nodos y estilos
-      geometry.ts       geometría básica
+      geometry.ts       geometría: rectángulo, círculo, polígono, estrella, arco, espiral, concéntricas, red, fractal
+      organic.ts        blob, forma fluida, silueta irregular, geometría orgánica, ondas, curvas fluidas, cinta, composición abstracta
       botanical.ts      girasol, margarita, flor, tulipán, hoja, rama, raíces, árbol, helecho
       agro.ts           espiga de trigo, planta de maíz
   render/svg.ts         Rendering Engine: escena → SVG (lo usan el lienzo, las miniaturas y la exportación)
@@ -48,7 +50,7 @@ Cada nodo generado guarda `source = { generator, params, seed }`. Por eso se pue
 
 Las plantas separan sus partes en grupos con nombre y un `role` (`petals`, `center`, `stem`, `leaves`, `roots`...). Los parámetros también van agrupados por parte (`group`), y el panel los muestra así. La edición por prompts va a usar ambas cosas para tocar solo lo que se pide.
 
-Módulos que llegan en las próximas etapas: Prompt Interpreter, Organic Shape Engine, Style Engine y Composition Engine.
+Módulos que llegan en las próximas etapas: Prompt Interpreter, Style Engine y Composition Engine (la composición abstracta ya trae una versión simple de ubicación con equilibrio).
 
 ## Etapas
 
@@ -57,7 +59,7 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Organic Shape E
 | 1. Interfaz, lienzo y proyectos | ✓ Hecha |
 | 2. Motor procedural y geometría SVG | ✓ Hecha |
 | 3. Generadores botánicos | ✓ Hecha (11 figuras, incluye agro) |
-| 4. Generadores abstractos y geométricos | Geometría básica hecha; faltan los orgánicos |
+| 4. Generadores abstractos y geométricos | ✓ Hecha |
 | 5. Biblioteca de categorías | Pendiente |
 | 6. Estilos visuales | Pendiente |
 | 7. Prompts (reglas locales + Ollama opcional) | Pendiente |
@@ -88,3 +90,13 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Organic Shape E
 - **Topes de rendimiento:** la ramificación corta en 1500 segmentos y el follaje se reparte para que el SVG no explote.
 
 **Pendiente de botánica para la etapa 5:** rosa, hongos, cactus, suculentas, frutas, verduras, semillas sueltas, hierbas y enredaderas.
+
+### Etapa 4: qué hay
+
+- **Formas orgánicas:** blob, forma fluida (gota), silueta irregular y geometría orgánica (superfórmula). Todas comparten controles de vértices, suavidad, irregularidad, simetría, complejidad, proporción y "cola" para estirar un lado.
+- **Ondas:** como líneas o como bandas de color, con amplitud, largo de onda, desfase, crecimiento e irregularidad.
+- **Curvas fluidas:** trazos que siguen un campo de flujo invisible y se afinan en las puntas.
+- **Cinta:** ondula y se retuerce, con la cara de adelante y la de atrás en colores distintos.
+- **Composición abstracta:** formas mixtas, orgánicas o geométricas, con cantidad, distribución (libre, agrupada, en fila, diagonal o círculo), separación, escala, rotación, equilibrio visual y espacio negativo. Paleta de 4 colores (por defecto, verde oliva, beige, mostaza y oscuro).
+- **Geometría nueva:** arco con grosor, red geométrica (cuadrada, triangular o panal, con nodos y deformación) y fractales (copo de Koch, triángulo y alfombra de Sierpinski, curva del dragón).
+- Los fractales tienen tope de profundidad por tipo y las curvas fluidas, tope de puntos, para que el SVG siga siendo manejable.

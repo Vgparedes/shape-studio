@@ -4,7 +4,9 @@ import type { Generator, GenContext } from './types';
 import type { PathNode, Style } from '../../core/types';
 import { IDENTITY } from '../../core/scene';
 import {
+  annularSector,
   ellipsePath,
+  polyline,
   polar,
   regularPolygonPoints,
   roundedPolygon,
@@ -94,6 +96,7 @@ export const spiral: Generator = {
   id: 'geo.spiral',
   name: 'Espiral',
   category: 'geometria',
+  also: ['organicas'],
   description: 'Espiral de trazo, arquimediana (vueltas parejas) o logarítmica (se abre cada vez más).',
   keywords: ['espiral', 'espirales', 'spiral', 'caracol'],
   params: [
@@ -176,4 +179,230 @@ export const concentric: Generator = {
   },
 };
 
-export const geometryGenerators: Generator[] = [rectangle, ellipse, polygon, star, spiral, concentric];
+export const arc: Generator = {
+  id: 'geo.arc',
+  name: 'Arco',
+  category: 'geometria',
+  description: 'Arco con grosor: desde una línea curva hasta un semicírculo o una porción de torta.',
+  keywords: ['arco', 'arcos', 'semicírculo', 'semicirculo', 'medialuna', 'arc'],
+  params: [
+    { key: 'radius', label: 'Radio', type: 'number', min: 5, max: 600, step: 1, default: 150, unit: 'px' },
+    { key: 'thickness', label: 'Grosor (0 = torta)', type: 'number', min: 0, max: 1, step: 0.01, default: 0.3 },
+    { key: 'start', label: 'Desde', type: 'number', min: -360, max: 360, step: 1, default: 180, unit: '°' },
+    { key: 'sweep', label: 'Abertura', type: 'number', min: 1, max: 360, step: 1, default: 180, unit: '°' },
+  ],
+  generate: (ctx) => {
+    const R = n(ctx, 'radius');
+    const start = n(ctx, 'start');
+    return { kind: 'path', d: annularSector(R, R * (1 - n(ctx, 'thickness')), start, start + n(ctx, 'sweep')), style: { ...FILL, fill: '#c4553a' } };
+  },
+};
+
+export const network: Generator = {
+  id: 'geo.network',
+  name: 'Red geométrica',
+  category: 'geometria',
+  description: 'Malla cuadrada, triangular o hexagonal, con nodos y deformación opcional.',
+  keywords: ['red', 'redes', 'malla', 'grilla', 'retícula', 'reticula', 'panal', 'hexagonal', 'network', 'grid'],
+  params: [
+    {
+      key: 'type',
+      label: 'Tipo',
+      type: 'select',
+      options: [
+        { value: 'square', label: 'Cuadrada' },
+        { value: 'triangle', label: 'Triangular' },
+        { value: 'hex', label: 'Hexagonal (panal)' },
+      ],
+      default: 'hex',
+    },
+    { key: 'cols', label: 'Columnas', type: 'number', min: 1, max: 40, step: 1, default: 7 },
+    { key: 'rows', label: 'Filas', type: 'number', min: 1, max: 40, step: 1, default: 5 },
+    { key: 'cell', label: 'Tamaño de celda', type: 'number', min: 4, max: 200, step: 1, default: 44, unit: 'px' },
+    { key: 'jitter', label: 'Deformación', type: 'number', min: 0, max: 0.5, step: 0.01, default: 0 },
+    { key: 'nodes', label: 'Tamaño de los nodos', type: 'number', min: 0, max: 30, step: 0.5, default: 4, unit: 'px' },
+    { key: 'width', label: 'Grosor de líneas', type: 'number', min: 0.2, max: 12, step: 0.1, default: 2, unit: 'px' },
+    { key: 'color', label: 'Color', type: 'color', default: '#2b2620' },
+  ],
+  generate: (ctx) => {
+    const cols = Math.round(n(ctx, 'cols'));
+    const rows = Math.round(n(ctx, 'rows'));
+    const c = n(ctx, 'cell');
+    const jit = n(ctx, 'jitter') * c;
+    const color = String(ctx.params.color);
+    // Los vértices compartidos se deforman igual en todas las celdas que los usan.
+    const cache = new Map<string, Pt>();
+    const v = (x: number, y: number): Pt => {
+      const key = `${Math.round(x * 10)},${Math.round(y * 10)}`;
+      let p = cache.get(key);
+      if (!p) cache.set(key, (p = [x + ctx.rng.jitter(jit), y + ctx.rng.jitter(jit)]));
+      return p;
+    };
+    const edges = new Set<string>();
+    let lines = '';
+    const edge = (a: Pt, b: Pt) => {
+      const k = [a, b].map((p) => p.join(',')).sort().join('|');
+      if (edges.has(k)) return;
+      edges.add(k);
+      lines += polyline([a, b], false);
+    };
+    const type = ctx.params.type;
+    if (type === 'hex') {
+      const w = Math.sqrt(3) * c;
+      const ox = -((cols - 0.5) * w) / 2;
+      const oy = -((rows - 1) * 1.5 * c) / 2;
+      for (let r = 0; r < rows; r++)
+        for (let q = 0; q < cols; q++) {
+          const cx = ox + q * w + (r % 2) * (w / 2);
+          const cy = oy + r * 1.5 * c;
+          const pts = Array.from({ length: 6 }, (_, i) => v(cx + Math.cos(((60 * i - 30) * Math.PI) / 180) * c, cy + Math.sin(((60 * i - 30) * Math.PI) / 180) * c));
+          pts.forEach((p, i) => edge(p, pts[(i + 1) % 6]));
+        }
+    } else if (type === 'triangle') {
+      const h = (c * Math.sqrt(3)) / 2;
+      const ox = -(cols * c) / 2;
+      const oy = -(rows * h) / 2;
+      for (let r = 0; r <= rows; r++)
+        for (let q = 0; q <= cols; q++) {
+          const shift = (r % 2) * (c / 2);
+          const p = v(ox + q * c + shift, oy + r * h);
+          if (q < cols) edge(p, v(ox + (q + 1) * c + shift, oy + r * h));
+          if (r < rows) {
+            const ns = ((r + 1) % 2) * (c / 2);
+            const a = v(ox + q * c + ns, oy + (r + 1) * h);
+            edge(p, a);
+            const bx = shift ? ox + (q + 1) * c + ns : ox + (q - 1) * c + ns;
+            if (bx >= ox - 1e-6 && bx <= ox + cols * c + c / 2 + 1e-6) edge(p, v(bx, oy + (r + 1) * h));
+          }
+        }
+    } else {
+      const ox = -(cols * c) / 2;
+      const oy = -(rows * c) / 2;
+      for (let r = 0; r <= rows; r++)
+        for (let q = 0; q <= cols; q++) {
+          const p = v(ox + q * c, oy + r * c);
+          if (q < cols) edge(p, v(ox + (q + 1) * c, oy + r * c));
+          if (r < rows) edge(p, v(ox + q * c, oy + (r + 1) * c));
+        }
+    }
+    const children: PathNode[] = [
+      { id: ctx.uid(), name: 'Líneas', kind: 'path', d: lines, style: { ...LINE, stroke: color, strokeWidth: n(ctx, 'width') }, transform: { ...IDENTITY }, opacity: 1, hidden: false, locked: false },
+    ];
+    const nr = n(ctx, 'nodes');
+    if (nr > 0) {
+      const dots = [...cache.values()].map(([x, y]) => `M${x - nr} ${y}a${nr} ${nr} 0 1 0 ${nr * 2} 0a${nr} ${nr} 0 1 0 ${-nr * 2} 0Z`).join('');
+      children.push({ id: ctx.uid(), name: 'Nodos', kind: 'path', d: dots, style: { fill: color, stroke: null, strokeWidth: 0 }, transform: { ...IDENTITY }, opacity: 1, hidden: false, locked: false });
+    }
+    return { kind: 'group', children };
+  },
+};
+
+function koch(a: Pt, b: Pt, depth: number, out: Pt[]) {
+  if (depth === 0) {
+    out.push(a);
+    return;
+  }
+  const d: Pt = [(b[0] - a[0]) / 3, (b[1] - a[1]) / 3];
+  const p1: Pt = [a[0] + d[0], a[1] + d[1]];
+  const p3: Pt = [a[0] + 2 * d[0], a[1] + 2 * d[1]];
+  const ang = Math.atan2(d[1], d[0]) - Math.PI / 3;
+  const L = Math.hypot(d[0], d[1]);
+  const p2: Pt = [p1[0] + Math.cos(ang) * L, p1[1] + Math.sin(ang) * L];
+  koch(a, p1, depth - 1, out);
+  koch(p1, p2, depth - 1, out);
+  koch(p2, p3, depth - 1, out);
+  koch(p3, b, depth - 1, out);
+}
+
+export const fractal: Generator = {
+  id: 'geo.fractal',
+  name: 'Fractal',
+  category: 'geometria',
+  description: 'Copo de Koch, triángulo y alfombra de Sierpinski o curva del dragón, con la profundidad que elijas.',
+  keywords: ['fractal', 'fractales', 'koch', 'sierpinski', 'dragón', 'dragon', 'copo'],
+  params: [
+    {
+      key: 'type',
+      label: 'Tipo',
+      type: 'select',
+      options: [
+        { value: 'koch', label: 'Copo de Koch' },
+        { value: 'sierpinski', label: 'Triángulo de Sierpinski' },
+        { value: 'carpet', label: 'Alfombra de Sierpinski' },
+        { value: 'dragon', label: 'Curva del dragón' },
+      ],
+      default: 'koch',
+    },
+    { key: 'depth', label: 'Profundidad', type: 'number', min: 0, max: 6, step: 1, default: 3 },
+    { key: 'size', label: 'Tamaño', type: 'number', min: 20, max: 800, step: 1, default: 300, unit: 'px' },
+    { key: 'color', label: 'Color', type: 'color', default: '#3f6fb5' },
+  ],
+  generate: (ctx) => {
+    const type = ctx.params.type;
+    const S = n(ctx, 'size');
+    const color = String(ctx.params.color);
+    // Topes por tipo: más allá, la cantidad de piezas crece tanto que el archivo deja de ser práctico.
+    const depth = Math.min(Math.round(n(ctx, 'depth')), type === 'carpet' ? 4 : type === 'koch' ? 5 : 6);
+    if (type === 'sierpinski') {
+      let d = '';
+      const tri = (a: Pt, b: Pt, c: Pt, k: number) => {
+        if (k === 0) {
+          d += polyline([a, b, c], true);
+          return;
+        }
+        const ab: Pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const bc: Pt = [(b[0] + c[0]) / 2, (b[1] + c[1]) / 2];
+        const ca: Pt = [(c[0] + a[0]) / 2, (c[1] + a[1]) / 2];
+        tri(a, ab, ca, k - 1);
+        tri(ab, b, bc, k - 1);
+        tri(ca, bc, c, k - 1);
+      };
+      const pts = regularPolygonPoints(3, S / Math.sqrt(3));
+      tri(pts[0], pts[1], pts[2], depth);
+      return { kind: 'path', d, style: { fill: color, stroke: null, strokeWidth: 0 } };
+    }
+    if (type === 'carpet') {
+      let d = roundedRect(S, S, 0);
+      // Los agujeros se dibujan como subcaminos en sentido contrario.
+      const hole = (x: number, y: number, s: number, k: number) => {
+        if (k === 0) return;
+        const t = s / 3;
+        d += `M${x + t} ${y + t}V${y + 2 * t}H${x + 2 * t}V${y + t}Z`;
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (i !== 1 || j !== 1) hole(x + i * t, y + j * t, t, k - 1);
+      };
+      hole(-S / 2, -S / 2, S, depth);
+      return { kind: 'path', d, style: { fill: color, stroke: null, strokeWidth: 0 } };
+    }
+    if (type === 'dragon') {
+      let turns: number[] = [];
+      const iters = depth * 2 + 2;
+      for (let i = 0; i < iters; i++) turns = [...turns, 1, ...turns.slice().reverse().map((t) => -t)];
+      let ang = 0;
+      let p: Pt = [0, 0];
+      const pts: Pt[] = [p];
+      const step = 1;
+      for (const t of [0, ...turns]) {
+        ang += (t * Math.PI) / 2;
+        p = [p[0] + Math.cos(ang) * step, p[1] + Math.sin(ang) * step];
+        pts.push(p);
+      }
+      const xs = pts.map((q) => q[0]);
+      const ys = pts.map((q) => q[1]);
+      const w = Math.max(...xs) - Math.min(...xs) || 1;
+      const h = Math.max(...ys) - Math.min(...ys) || 1;
+      const k = S / Math.max(w, h);
+      const mx = (Math.max(...xs) + Math.min(...xs)) / 2;
+      const my = (Math.max(...ys) + Math.min(...ys)) / 2;
+      return { kind: 'path', d: polyline(pts.map(([x, y]) => [(x - mx) * k, (y - my) * k] as Pt), false), style: { ...LINE, stroke: color, strokeWidth: Math.max(0.6, k * 0.45) } };
+    }
+    const tri = regularPolygonPoints(3, S / Math.sqrt(3), -90);
+    const out: Pt[] = [];
+    // Recorrido en sentido horario para que los picos apunten hacia afuera.
+    koch(tri[0], tri[1], depth, out);
+    koch(tri[1], tri[2], depth, out);
+    koch(tri[2], tri[0], depth, out);
+    return { kind: 'path', d: polyline(out, true), style: { fill: color, stroke: null, strokeWidth: 0 } };
+  },
+};
+
+export const geometryGenerators: Generator[] = [rectangle, ellipse, polygon, star, arc, spiral, concentric, network, fractal];

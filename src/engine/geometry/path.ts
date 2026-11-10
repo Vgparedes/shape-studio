@@ -81,3 +81,30 @@ export function starPoints(tips: number, outer: number, inner: number, rotationD
   for (let i = 0; i < tips * 2; i++) pts.push(polar(i % 2 === 0 ? outer : inner, rotationDeg + (180 / tips) * i));
   return pts;
 }
+
+/**
+ * Sector de anillo (arco con grosor). Con inner = 0 es una porción de torta;
+ * con 360° es un anillo completo. Ángulos en grados, 0 = derecha, sentido horario.
+ */
+export function annularSector(outer: number, inner: number, startDeg: number, endDeg: number): string {
+  let sweep = endDeg - startDeg;
+  if (Math.abs(sweep) >= 359.99) {
+    const ring = ellipsePath(outer, outer);
+    if (inner <= 0.01) return ring;
+    // Anillo: el agujero va en sentido contrario para que quede vacío con cualquier regla de relleno.
+    return `${ring}M${num(inner)} 0A${num(inner)} ${num(inner)} 0 1 1 ${num(-inner)} 0A${num(inner)} ${num(inner)} 0 1 1 ${num(inner)} 0Z`;
+  }
+  if (sweep < 0) sweep += 360;
+  const large = sweep > 180 ? 1 : 0;
+  const a0 = polar(outer, startDeg);
+  const a1 = polar(outer, startDeg + sweep);
+  let d = `M${pt(a0)}A${num(outer)} ${num(outer)} 0 ${large} 1 ${pt(a1)}`;
+  if (inner > 0.01) {
+    const b1 = polar(inner, startDeg + sweep);
+    const b0 = polar(inner, startDeg);
+    d += `L${pt(b1)}A${num(inner)} ${num(inner)} 0 ${large} 0 ${pt(b0)}`;
+  } else {
+    d += 'L0 0';
+  }
+  return d + 'Z';
+}
