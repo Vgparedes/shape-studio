@@ -100,3 +100,9 @@ Módulos que llegan en las próximas etapas: Prompt Interpreter, Style Engine y 
 - **Composición abstracta:** formas mixtas, orgánicas o geométricas, con cantidad, distribución (libre, agrupada, en fila, diagonal o círculo), separación, escala, rotación, equilibrio visual y espacio negativo. Paleta de 4 colores (por defecto, verde oliva, beige, mostaza y oscuro).
 - **Geometría nueva:** arco con grosor, red geométrica (cuadrada, triangular o panal, con nodos y deformación) y fractales (copo de Koch, triángulo y alfombra de Sierpinski, curva del dragón).
 - Los fractales tienen tope de profundidad por tipo y las curvas fluidas, tope de puntos, para que el SVG siga siendo manejable.
+
+### Etapa 5 (en curso): qué hay
+
+- **Botánica, segunda tanda:** rosa (abierta o capullo), hongo (sombreros variados, en grupo), cactus (columnar, barril o nopal, con maceta), suculenta, frutas y verduras (10 tipos), semillas y granos (pipa de girasol, maíz, poroto, almendra y trigo), pasto y hierbas, y enredadera.
+- **Paisaje:** montañas con nieve, colinas y campos con surcos, nubes, sol, luna con fases, río/lago/gota, dunas, piedras, fuego/fogata, copo de nieve o cristales, y planeta con anillo.
+- **Falta:** animales, arquitectura y objetos, y símbolos y ornamentos. Además, revisar en el navegador los últimos ajustes de paisaje (nubes, nieve de las montañas, cráteres de la luna).

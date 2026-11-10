@@ -8,6 +8,8 @@ import { geometryGenerators } from './geometry';
 import { botanicalGenerators } from './botanical';
 import { agroGenerators } from './agro';
 import { organicGenerators } from './organic';
+import { botanicalExtraGenerators } from './botanicalExtra';
+import { landscapeGenerators } from './landscape';
 
 export const CATEGORIES: { id: CategoryId; name: string }[] = [
   { id: 'botanica', name: 'Botánica y naturaleza' },
@@ -24,7 +26,7 @@ const registry = new Map<string, Generator>();
 export function registerGenerators(list: Generator[]) {
   for (const g of list) registry.set(g.id, g);
 }
-registerGenerators([...botanicalGenerators, ...agroGenerators, ...organicGenerators, ...geometryGenerators]);
+registerGenerators([...botanicalGenerators, ...botanicalExtraGenerators, ...agroGenerators, ...organicGenerators, ...landscapeGenerators, ...geometryGenerators]);
 
 export const getGenerator = (id: string) => registry.get(id) ?? null;
 export const listGenerators = () => [...registry.values()];
