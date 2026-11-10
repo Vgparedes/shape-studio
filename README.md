@@ -14,7 +14,7 @@ npm run build    # chequea tipos y arma dist/
 
 ```
 src/
-  core/                 modelo del documento (escena, nodos, transformaciones), azar con semilla y colores
+  core/                 modelo del documento, transformaciones (componer, fijar un punto), nodos editables, azar y colores
   engine/
     geometry/           Procedural Generation Engine
       path.ts           primitivas: polígonos, curvas suaves (Catmull-Rom → Bézier), elipses...
@@ -84,7 +84,7 @@ El Composition Engine tiene una versión inicial (`prompt/execute.ts`) que se co
 | 6. Estilos visuales | ✓ Hecha (20 estilos) |
 | 7. Prompts (reglas locales + Ollama opcional) | ✓ Hecha |
 | 8. Variaciones y edición conversacional | ✓ Hecha |
-| 9. Editor manual completo | Parcial (mover, capas, deshacer) |
+| 9. Editor manual completo | ✓ Hecha |
 | 10. Referencias visuales y exportación | Exportación SVG / PNG / WEBP hecha |
 
 ### Etapa 1: qué hay
@@ -174,8 +174,7 @@ Barra de **pedidos** debajo del lienzo: escribís lo que querés y se genera. En
   - Desde GitHub Pages, Ollama tiene que arrancar con `OLLAMA_ORIGINS=https://vgparedes.github.io`.
   - **No se probó con un modelo real**: en la compu de desarrollo no está instalado. Sí se probó que avise cuando falla y que siga con el intérprete local.
 - **Límites actuales:**
-  - Cada pedido nuevo arma su composición sobre toda la mesa de trabajo, aunque ya haya otras cosas. Ubicarlo en un lugar libre o en una zona elegida queda para la etapa 9.
-  - El intérprete local no entiende relaciones espaciales finas ("una luna arriba a la izquierda del árbol").
+  - Ubicación (etapa 9): lo nuevo va a la zona pedida o al lugar libre más grande. Todavía no entiende relaciones entre figuras ("la luna arriba del árbol").
 
 ### Etapa 8: qué hay
 
@@ -194,3 +193,32 @@ Barra de **pedidos** debajo del lienzo: escribís lo que querés y se genera. En
 - **Cada edición es un solo paso de deshacer** y queda en el historial con lo que se cambió (por ejemplo, "Hojas: largo −30 %").
 - **Avisa lo que no puede hacer.** Por ejemplo, "agregá hojas en la parte inferior" suma hojas pero avisa que la ubicación sobre el tallo todavía no se puede elegir.
 - **Para tener en cuenta.** Reinterpretar vuelve a armar desde el texto del pedido, así que descarta las ediciones hechas después (se pueden recuperar con deshacer).
+
+### Etapa 9: qué hay
+
+**Editor manual** (es opcional: todo se puede hacer solo con pedidos).
+
+- **Selección.** Clic en una figura (Mayús suma). Arrastrar el fondo con el mouse dibuja un **recuadro de selección**. Con el dedo, la barra espaciadora o el botón del medio, se desplaza la vista.
+- **Transformar.**
+  - Arrastrar para mover; flechas para mover de a 1 px (Mayús: 10 px).
+  - **Manijas en las esquinas** para escalar y **manija redonda arriba** para rotar (Mayús: de a 15°). Las dos trabajan alrededor del centro de la figura.
+  - Los valores exactos se cargan en Propiedades.
+- **Duplicar** (Ctrl + D), **copiar, cortar y pegar** (Ctrl + C, X y V; lo pegado aparece corrido), **borrar** (Supr).
+- **Agrupar** (Ctrl + G) y **desagrupar** (Ctrl + Mayús + G). Al desagrupar, cada figura queda exactamente donde se veía, porque se combinan las transformaciones. Si el grupo tenía estilo, lo heredan las figuras.
+- **Orden de capas.** Subir o bajar (Ctrl + ] o [) y traer al frente o mandar al fondo (Ctrl + Mayús + ] o [), también con botones en Capas.
+- **Edición de nodos.** Doble clic sobre un trazado, o el botón "Editar nodos":
+  - El trazado pasa a puntos editables, que se arrastran.
+  - Doble clic sobre el trazado suma un punto; Alt + clic borra uno.
+  - "Curvas suaves / Esquinas rectas" cambia cómo se unen los puntos.
+  - Esc o "Listo" para salir.
+- **Separar del generador.** Convierte una figura generada en dibujo común, para editar sus partes a mano sin que se pierdan al regenerarla.
+- **Colores y grosor** de trazo por figura o grupo, como antes. **Deshacer y rehacer** en todo.
+
+**Composición (pedidos nuevos):**
+- **Zonas:** "arriba", "abajo", "a la izquierda", "a la derecha", las cuatro esquinas, "en el centro". "Mirando hacia la derecha" sigue siendo orientación, no lugar.
+- Si no se pide una zona y ya hay figuras, lo nuevo va al **lugar libre más grande** de la mesa (con una grilla de ocupación de 16 × 10). Si no hay lugar, avisa y lo pone encima.
+- Las variaciones de disposición y "agregá…" reubican dentro de la zona que ya ocupaba el grupo.
+
+**Límites:**
+- La edición de nodos convierte las curvas en puntos y vuelve a unirlos con curvas suaves (o rectas). No hay manijas de Bézier individuales.
+- Las manijas de escala y rotación aparecen solo con una figura de primer nivel seleccionada. Para las partes internas se usan los valores de Propiedades.

@@ -9,6 +9,8 @@ import { getGenerator, regenerateNode } from '../engine/generators';
 import { STYLES, newFx } from '../engine/style';
 import { rgbToHex } from '../core/color';
 import { GROUNDED, layoutCells, placeInCell, executePlan } from './execute';
+import { measureLocal } from '../render/measure';
+import { apply } from '../core/transform';
 import { interpretLocal } from './local';
 import type { Layout, Plan } from './types';
 
@@ -52,7 +54,9 @@ function reseed(n: SceneNode, rng: Rng, amount: number): SceneNode {
 
 /** Vuelve a ubicar las figuras de un grupo con otra disposición (sin cambiarlas). */
 export function relayout(group: GroupNode, doc: Scene, layout: Layout, rng: Rng, spacing = 0.5): GroupNode {
-  const cells = layoutCells(group.children.length, layout, doc, spacing, rng);
+  // Se reubica dentro de la zona que ya ocupaba el grupo (si se había puesto en un rincón, sigue ahí).
+  const area = occupiedArea(group.children, doc);
+  const cells = layoutCells(group.children.length, layout, doc, spacing, rng, area);
   const children = group.children.map((c, i) => {
     const copy = { ...c };
     const g = c.source ? getGenerator(c.source.generator) : null;
@@ -61,6 +65,28 @@ export function relayout(group: GroupNode, doc: Scene, layout: Layout, rng: Rng,
   });
   const plan = group.prompt?.plan as Plan | undefined;
   return { ...group, children, prompt: group.prompt && plan ? { ...group.prompt, plan: { ...plan, layout } } : group.prompt };
+}
+
+/** Caja que ocupan unas figuras en la mesa de trabajo. Si ocupan casi toda la mesa, se usa la mesa entera. */
+function occupiedArea(nodes: SceneNode[], doc: Scene) {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const n of nodes) {
+    const b = measureLocal({ ...n, transform: { x: 0, y: 0, rotation: 0, scale: 1 } });
+    if (!b) continue;
+    for (const c of [apply(n.transform, [b.x, b.y]), apply(n.transform, [b.x + b.width, b.y + b.height]), apply(n.transform, [b.x + b.width, b.y]), apply(n.transform, [b.x, b.y + b.height])]) {
+      x0 = Math.min(x0, c[0]);
+      y0 = Math.min(y0, c[1]);
+      x1 = Math.max(x1, c[0]);
+      y1 = Math.max(y1, c[1]);
+    }
+  }
+  if (!Number.isFinite(x0) || (x1 - x0) * (y1 - y0) > doc.width * doc.height * 0.6) return undefined;
+  const padX = Math.max(0, (doc.width * 0.3 - (x1 - x0)) / 2);
+  const padY = Math.max(0, (doc.height * 0.3 - (y1 - y0)) / 2);
+  return { x: Math.max(0, x0 - padX), y: Math.max(0, y0 - padY), w: Math.min(doc.width, x1 - x0 + padX * 2), h: Math.min(doc.height, y1 - y0 + padY * 2) };
 }
 
 /** Una variación del nodo. k elige el énfasis (semillas, proporciones, disposición, todo junto). */
@@ -168,7 +194,8 @@ export function reinterpret(node: SceneNode, doc: Scene): SceneNode | null {
     const prev = node.prompt.plan as Plan;
     // Se conserva el estilo y la paleta si el pedido nuevo no los define.
     if (!plan.style && prev.style) plan.style = prev.style;
-    const g = executePlan(plan, doc, seed, node.prompt.text);
+    // Sin el grupo viejo en la mesa, para que no se esquive a sí mismo al buscar lugar.
+    const g = executePlan(plan, { ...doc, nodes: doc.nodes.filter((n) => n.id !== node.id) }, seed, node.prompt.text);
     return g ? { ...g, id: node.id, transform: node.transform } : null;
   }
   return { ...reseed(node, createRng(randomSeed()), 0.8), id: node.id };

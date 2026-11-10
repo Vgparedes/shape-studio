@@ -23,6 +23,8 @@ export interface Plan {
   sizeVariation: number;
   /** Estilo visual a aplicar al conjunto. */
   style?: { id: string; params?: ParamValues };
+  /** Zona de la mesa de trabajo pedida ("arriba a la izquierda"), en fracciones (0 a 1). */
+  region?: { x: number; y: number; w: number; h: number; label: string };
   /** Colores pedidos (se reparten entre las figuras o van a la paleta de la composición). */
   palette: string[];
   /** Lo que se entendió, en castellano, para mostrarlo. */

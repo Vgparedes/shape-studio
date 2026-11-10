@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from './state/store';
+import { useView } from './state/view';
 import { boot, saveNow, startAutosave } from './projects/session';
 import { TopBar } from './ui/TopBar';
 import { LibraryPanel } from './ui/LibraryPanel';
@@ -56,8 +57,33 @@ export default function App() {
           e.preventDefault();
           s.deleteSelection();
         }
+      } else if (mod && k === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) s.ungroupSelection();
+        else s.groupSelection();
+      } else if (mod && k === 'c') {
+        if (s.selection.length) {
+          e.preventDefault();
+          s.copySelection();
+        }
+      } else if (mod && k === 'x') {
+        if (s.selection.length) {
+          e.preventDefault();
+          s.copySelection();
+          s.deleteSelection();
+        }
+      } else if (mod && k === 'v') {
+        e.preventDefault();
+        s.paste();
+      } else if (mod && (e.code === 'BracketRight' || e.code === 'BracketLeft') && s.selection.length === 1) {
+        // Se usa la tecla física: con Mayús, "[" llega como "{" en muchos teclados.
+        e.preventDefault();
+        const dir = e.code === 'BracketRight' ? 1 : -1;
+        if (e.shiftKey) s.moveToEdge(s.selection[0], dir);
+        else s.reorder(s.selection[0], dir);
       } else if (k === 'escape') {
-        s.select([]);
+        if (useView.getState().editNodeId) useView.getState().setEditNode(null);
+        else s.select([]);
       } else if (k.startsWith('arrow') && s.selection.length) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;

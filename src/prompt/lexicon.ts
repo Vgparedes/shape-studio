@@ -137,5 +137,21 @@ export const LAYOUT_WORDS: [RegExp, 'row' | 'column' | 'grid' | 'circle' | 'scat
   [/\b(agrupad|juntos|juntas|ramo|ramillete|manojo|bouquet|composicion|conjunto|arreglo)/, 'cluster'],
 ];
 
+/**
+ * Zonas de la mesa de trabajo. "a la derecha" cuenta como lugar solo si no viene de "mirando/hacia la derecha".
+ * El orden importa: primero las esquinas, después los lados.
+ */
+export const REGIONS: [RegExp, { x: number; y: number; w: number; h: number; label: string }][] = [
+  [/(arriba a la izquierda|esquina superior izquierda|arriba izquierda)/, { x: 0, y: 0, w: 0.48, h: 0.48, label: 'arriba a la izquierda' }],
+  [/(arriba a la derecha|esquina superior derecha|arriba derecha)/, { x: 0.52, y: 0, w: 0.48, h: 0.48, label: 'arriba a la derecha' }],
+  [/(abajo a la izquierda|esquina inferior izquierda|abajo izquierda)/, { x: 0, y: 0.52, w: 0.48, h: 0.48, label: 'abajo a la izquierda' }],
+  [/(abajo a la derecha|esquina inferior derecha|abajo derecha)/, { x: 0.52, y: 0.52, w: 0.48, h: 0.48, label: 'abajo a la derecha' }],
+  [/(en el centro|al centro|en el medio|al medio)/, { x: 0.22, y: 0.18, w: 0.56, h: 0.64, label: 'en el centro' }],
+  [/((?<!hacia |mirando |mirando hacia )\barriba\b|parte superior|en la parte de arriba)/, { x: 0, y: 0, w: 1, h: 0.46, label: 'arriba' }],
+  [/((?<!hacia |mirando |mirando hacia )\babajo\b|parte inferior|en la parte de abajo|en la base)/, { x: 0, y: 0.54, w: 1, h: 0.46, label: 'abajo' }],
+  [/((?<!hacia |mirando |mirando hacia )\ba la izquierda\b|lado izquierdo)/, { x: 0, y: 0, w: 0.48, h: 1, label: 'a la izquierda' }],
+  [/((?<!hacia |mirando |mirando hacia )\ba la derecha\b|lado derecho)/, { x: 0.52, y: 0, w: 0.48, h: 1, label: 'a la derecha' }],
+];
+
 /** Frases que suenan a editar algo existente (eso llega en la etapa 8). */
 export const EDIT_START = /^(hace|hac[eé]|agrega|agreg[aá]|suma|sum[aá]|cambia|cambi[aá]|quiero que|reduci|reduc[ií]|aumenta|aument[aá]|inverti|invert[ií]|simplifica|simplific[aá]|conserva|conserv[aá]|mantene|manten[eé]|quita|quit[aá]|saca|sac[aá]|pone|pon[eé]|move|mov[eé]|achica|achic[aá]|agranda|agrand[aá])\b/;

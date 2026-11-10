@@ -1,6 +1,6 @@
 // Panel derecho, parte de abajo: capas. La de más arriba en la lista es la que se dibuja encima.
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Eye, EyeOff, Folder, Lock, LockOpen, Spline } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, ChevronsDown, ChevronsUp, Eye, EyeOff, Folder, Lock, LockOpen, Spline } from 'lucide-react';
 import type { SceneNode } from '../core/types';
 import { useStore } from '../state/store';
 import { IconButton, cx } from './controls';
@@ -82,11 +82,17 @@ export function LayersPanel() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-9 shrink-0 items-center border-b border-line pl-3 pr-1">
         <h2 className="flex-1 text-[11px] font-semibold uppercase tracking-[.08em] text-ink-2">Capas · {nodes.length}</h2>
-        <IconButton label="Subir capa" disabled={!single} onClick={() => single && reorder(single, 1)}>
+        <IconButton label="Traer al frente (Ctrl + Mayús + ])" disabled={!single} onClick={() => single && useStore.getState().moveToEdge(single, 1)}>
+          <ChevronsUp size={14} />
+        </IconButton>
+        <IconButton label="Subir capa (Ctrl + ])" disabled={!single} onClick={() => single && reorder(single, 1)}>
           <ArrowUp size={14} />
         </IconButton>
-        <IconButton label="Bajar capa" disabled={!single} onClick={() => single && reorder(single, -1)}>
+        <IconButton label="Bajar capa (Ctrl + [)" disabled={!single} onClick={() => single && reorder(single, -1)}>
           <ArrowDown size={14} />
+        </IconButton>
+        <IconButton label="Enviar al fondo (Ctrl + Mayús + [)" disabled={!single} onClick={() => single && useStore.getState().moveToEdge(single, -1)}>
+          <ChevronsDown size={14} />
         </IconButton>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto py-1">

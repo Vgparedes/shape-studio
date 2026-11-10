@@ -5,6 +5,9 @@ export const ZOOM_MIN = 0.05;
 export const ZOOM_MAX = 32;
 
 interface View {
+  /** Trazado en modo "editar nodos" (null = ninguno). */
+  editNodeId: string | null;
+  setEditNode(id: string | null): void;
   zoom: number;
   x: number; // posición en pantalla del origen del documento
   y: number;
@@ -21,6 +24,8 @@ interface View {
 const clamp = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 
 export const useView = create<View>((set, get) => ({
+  editNodeId: null,
+  setEditNode: (id) => set({ editNodeId: id }),
   zoom: 1,
   x: 0,
   y: 0,

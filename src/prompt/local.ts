@@ -6,7 +6,7 @@ import type { Generator, ParamDef } from '../engine/generators/types';
 import { getGenerator, listGenerators } from '../engine/generators';
 import { STYLES } from '../engine/style';
 import { createRng, type Rng } from '../core/random';
-import { COLORS, EDIT_START, FUZZY_COUNT, LAYOUT_WORDS, NUMBERS, PARTS, norm, singular, type PartDef } from './lexicon';
+import { COLORS, EDIT_START, FUZZY_COUNT, LAYOUT_WORDS, NUMBERS, PARTS, REGIONS, norm, singular, type PartDef } from './lexicon';
 import type { Layout, Plan, PlanItem } from './types';
 
 const STOP = new Set(
@@ -244,6 +244,14 @@ export function interpretLocal(text: string, seed: number): Plan {
   if (/(separad|espaciad|distanciad|con aire|aireado)/.test(flat)) plan.spacing = 0.85;
   if (total > 1) notes.push(`Disposición: ${{ single: 'una sola', row: 'en fila', column: 'en columna', grid: 'en grilla', circle: 'en círculo', scatter: 'dispersas', cluster: 'agrupadas' }[plan.layout]}`);
 
+  // Zona pedida de la mesa de trabajo.
+  const reg = REGIONS.find(([re]) => re.test(flat));
+  if (reg) {
+    plan.region = reg[1];
+    notes.push(`Ubicación: ${reg[1].label}`);
+    toks.forEach((t, i) => /^(arriba|abajo|centro|medio|superior|inferior|esquina|lado|izquierdo|derecho|base|izquierda|derecha)$/.test(t.w) && used.add(i));
+  }
+
   // 5) Estilo visual.
   for (let i = 0; i < toks.length && !plan.style; i++) {
     for (const st of STYLES) {
@@ -314,8 +322,9 @@ function applyClause(item: PlanItem, g: Generator, toks: Tok[], from: number, to
   const scope = clause.map((t) => t.w).join(' ') + (/(todas|todos)/.test(all) ? ' ' + all : '');
   const yawKey = paramOf(g, 'yaw') ? 'yaw' : undefined;
   const facingKey = paramOf(g, 'facing') ? 'facing' : undefined;
-  const right = /derecha/.test(scope);
-  const left = /izquierda/.test(scope);
+  // "a la derecha" sola es un lugar; la orientación necesita "mirando / hacia / orientado".
+  const right = /(mirando|hacia|orientad|apunt|mire|miren|mira)[a-z ]{0,15}derecha/.test(scope);
+  const left = /(mirando|hacia|orientad|apunt|mire|miren|mira)[a-z ]{0,15}izquierda/.test(scope);
   const profile = /perfil/.test(scope);
   if (right || left || profile) {
     const side = left ? -1 : 1;

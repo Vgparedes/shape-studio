@@ -45,6 +45,10 @@ export interface PathNode extends NodeBase {
   kind: 'path';
   d: string;
   style: Style;
+  /** Puntos editables a mano (edición de nodos). Si existen, `d` se arma a partir de ellos. */
+  anchors?: { pts: [number, number][]; closed: boolean }[];
+  /** Con edición de nodos: curva suave entre puntos (true) o rectas con esquinas (false). */
+  smooth?: boolean;
 }
 
 export interface GroupNode extends NodeBase {

@@ -5,6 +5,10 @@ import type { ParamValues, Project, PromptEntry, Scene, SceneNode } from '../cor
 import { cloneNode, findNode, locate, mapNode, newId, removeNodes, reorderNode } from '../core/scene';
 import { createFromGenerator, regenerateNode } from '../engine/generators';
 import { measureLocal } from '../render/measure';
+import { anchorsFromPath, pathFromAnchors } from '../core/anchors';
+import { compose } from '../core/transform';
+
+let clipboard: SceneNode[] = [];
 import { newFx } from '../engine/style';
 import { randomSeed } from '../core/random';
 
@@ -50,6 +54,17 @@ interface State {
   addPromptEntry(entry: PromptEntry): void;
   /** Reemplaza un nodo por otro (variación elegida, acción rápida) en un solo paso de deshacer. */
   replaceNode(id: string, node: SceneNode): void;
+
+  /** Edición manual (etapa 9). */
+  startNodeEdit(id: string): void;
+  setSmooth(id: string, smooth: boolean): void;
+  groupSelection(): string | null;
+  ungroupSelection(): string | null;
+  /** Al frente (+1) o al fondo (-1) de su grupo. */
+  moveToEdge(id: string, edge: 1 | -1): void;
+  detachGenerator(id: string): void;
+  copySelection(): number;
+  paste(): number;
 
   saveVersion(label: string): void;
   restoreVersion(id: string): void;
@@ -206,6 +221,99 @@ export const useStore = create<State>((set, get) => {
     addPromptEntry: (entry) => {
       const p = get().project;
       if (p) set({ project: { ...p, prompts: [...(p.prompts ?? []), entry].slice(-200) } });
+    },
+
+    startNodeEdit: (id) => {
+      get().updateNode(id, (n) => {
+        if (n.kind !== 'path' || n.anchors) return n;
+        const anchors = anchorsFromPath(n.d);
+        // Un trazado editado a mano deja de depender del generador (si lo regeneraran, se perderían los cambios).
+        const { source: _s, ...rest } = n;
+        void _s;
+        return { ...rest, anchors, smooth: true, d: pathFromAnchors(anchors, true) } as SceneNode;
+      });
+    },
+    setSmooth: (id, smooth) =>
+      get().updateNode(id, (n) => (n.kind === 'path' && n.anchors ? { ...n, smooth, d: pathFromAnchors(n.anchors, smooth) } : n)),
+    groupSelection: () => {
+      const p = get().project;
+      const sel = get().selection;
+      if (!p || sel.length < 2) return 'Seleccioná dos figuras o más para agrupar.';
+      const locs = sel.map((id) => locate(p.doc.nodes, id));
+      if (locs.some((l) => !l) || new Set(locs.map((l) => l!.parent?.id ?? 'raiz')).size > 1) return 'Para agrupar, las figuras tienen que estar en el mismo nivel de capas.';
+      const ids = new Set(sel);
+      const group: SceneNode = { id: newId(), name: 'Grupo', kind: 'group', children: [], transform: { x: 0, y: 0, rotation: 0, scale: 1 }, opacity: 1, hidden: false, locked: false };
+      const build = (list: SceneNode[]): SceneNode[] => {
+        if (list.some((n) => ids.has(n.id))) {
+          const picked = list.filter((n) => ids.has(n.id));
+          const at = list.findIndex((n) => ids.has(n.id));
+          const rest = list.filter((n) => !ids.has(n.id));
+          (group as Extract<SceneNode, { kind: 'group' }>).children = picked;
+          // El grupo queda donde estaba la de más arriba.
+          const lastIdx = list.map((n, i) => (ids.has(n.id) ? i : -1)).filter((i) => i >= 0).pop()!;
+          const insertAt = lastIdx - (picked.length - 1);
+          void at;
+          return [...rest.slice(0, insertAt), group, ...rest.slice(insertAt)];
+        }
+        return list.map((n) => (n.kind === 'group' ? { ...n, children: build(n.children) } : n));
+      };
+      withDoc((d) => ({ ...d, nodes: build(d.nodes) }));
+      set({ selection: [group.id] });
+      return null;
+    },
+    ungroupSelection: () => {
+      const p = get().project;
+      const sel = get().selection;
+      if (!p) return null;
+      const groups = sel.map((id) => findNode(p.doc.nodes, id)).filter((n): n is Extract<SceneNode, { kind: 'group' }> => n?.kind === 'group');
+      if (!groups.length) return 'Seleccioná un grupo para desagrupar.';
+      const gids = new Set(groups.map((g) => g.id));
+      const freed: string[] = [];
+      const build = (list: SceneNode[]): SceneNode[] =>
+        list.flatMap((n): SceneNode[] => {
+          if (n.kind === 'group' && gids.has(n.id)) {
+            // Cada hijo queda con la transformación combinada (la del grupo + la suya), así no se mueve.
+            return n.children.map((c) => {
+              freed.push(c.id);
+              return { ...c, transform: compose(n.transform, c.transform), opacity: c.opacity * n.opacity, fx: c.fx ?? n.fx } as SceneNode;
+            });
+          }
+          return n.kind === 'group' ? [{ ...n, children: build(n.children) } as SceneNode] : [n];
+        });
+      withDoc((d) => ({ ...d, nodes: build(d.nodes) }));
+      set({ selection: freed });
+      return null;
+    },
+    moveToEdge: (id, edge) =>
+      withDoc((d) => ({ ...d, nodes: reorderNode(d.nodes, id, edge * 100000) })),
+    detachGenerator: (id) =>
+      get().updateNode(id, (n) => {
+        const strip = (x: SceneNode): SceneNode => {
+          const { source: _s, prompt: _p, ...rest } = x;
+          void _s;
+          void _p;
+          return rest.kind === 'group' ? ({ ...rest, children: rest.children.map(strip) } as SceneNode) : (rest as SceneNode);
+        };
+        return strip(n);
+      }),
+    copySelection: () => {
+      const p = get().project;
+      if (!p) return 0;
+      clipboard = get().selection.map((id) => findNode(p.doc.nodes, id)).filter((n): n is SceneNode => !!n).map((n) => structuredClone(n));
+      return clipboard.length;
+    },
+    paste: () => {
+      if (!clipboard.length) return 0;
+      const copies = clipboard.map((n) => {
+        const c = cloneNode(n, false);
+        c.transform = { ...c.transform, x: c.transform.x + 24, y: c.transform.y + 24 };
+        return c;
+      });
+      // La próxima vez se pega más corrido, como en los programas de diseño.
+      clipboard = copies.map((c) => structuredClone(c));
+      withDoc((d) => ({ ...d, nodes: [...d.nodes, ...copies] }));
+      set({ selection: copies.map((c) => c.id) });
+      return copies.length;
     },
 
     saveVersion: (label) => {

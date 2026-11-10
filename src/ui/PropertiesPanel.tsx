@@ -1,13 +1,14 @@
 // Panel derecho, parte de arriba: propiedades de lo seleccionado (o del documento si no hay nada).
-import { useRef } from 'react';
-import { Copy, Dices, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useView } from '../state/view';
+import { Copy, Dices, Group, PenTool, Spline, Trash2, Ungroup, Unlink } from 'lucide-react';
 import type { ParamValues, Scene, SceneNode, Style } from '../core/types';
 import { randomSeed } from '../core/random';
 import { getGenerator } from '../engine/generators';
 import { getStyle, styleDefaults } from '../engine/style';
 import type { ParamDef } from '../engine/generators/types';
 import { useSelectedNodes, useStore } from '../state/store';
-import { Button, ColorField, Field, NumberInput, Section, Slider } from './controls';
+import { Button, ColorField, Field, NumberInput, Section, Slider, cx } from './controls';
 
 /** Agrupa cambios continuos (sliders, selector de color) en un único paso de deshacer. */
 function useGesture() {
@@ -200,6 +201,63 @@ function NodeProps({ node }: { node: SceneNode }) {
   );
 }
 
+/** Herramientas de edición manual: agrupar, desagrupar, nodos, separar del generador. */
+function ManualTools({ nodes }: { nodes: SceneNode[] }) {
+  const s = useStore();
+  const editId = useView((v) => v.editNodeId);
+  const [msg, setMsg] = useState<string | null>(null);
+  const one = nodes.length === 1 ? nodes[0] : null;
+  const say = (m: string | null) => {
+    setMsg(m);
+    if (m) setTimeout(() => setMsg(null), 3500);
+  };
+  const btn = 'flex h-7 items-center gap-1 rounded px-2 text-[11px] text-ink-2 ring-1 ring-line hover:bg-panel-2 hover:text-ink';
+  return (
+    <div className="space-y-1.5 border-b border-line px-3 py-2">
+      <div className="flex flex-wrap gap-1.5">
+        {nodes.length > 1 && (
+          <button type="button" className={btn} title="Ctrl + G" onClick={() => say(s.groupSelection())}>
+            <Group size={12} /> Agrupar
+          </button>
+        )}
+        {nodes.some((n) => n.kind === 'group') && (
+          <button type="button" className={btn} title="Ctrl + Mayús + G" onClick={() => say(s.ungroupSelection())}>
+            <Ungroup size={12} /> Desagrupar
+          </button>
+        )}
+        {one?.kind === 'path' && (
+          <button
+            type="button"
+            className={cx(btn, editId === one.id && 'bg-accent-soft text-ink ring-accent')}
+            title="También con doble clic sobre el trazado"
+            onClick={() => {
+              if (editId === one.id) useView.getState().setEditNode(null);
+              else {
+                s.startNodeEdit(one.id);
+                useView.getState().setEditNode(one.id);
+              }
+            }}
+          >
+            <PenTool size={12} /> {editId === one.id ? '✓ Editando nodos' : 'Editar nodos'}
+          </button>
+        )}
+        {one?.kind === 'path' && one.anchors && (
+          <button type="button" className={btn} onClick={() => s.setSmooth(one.id, one.smooth === false)}>
+            <Spline size={12} /> {one.smooth === false ? 'Curvas suaves' : 'Esquinas rectas'}
+          </button>
+        )}
+        {one && (one.source || one.prompt) && (
+          <button type="button" className={btn} title="Para editarla a mano sin que se regenere" onClick={() => (s.detachGenerator(one.id), say('Separada del generador: ya no tiene parámetros, pero podés editar sus partes a mano.'))}>
+            <Unlink size={12} /> Separar del generador
+          </button>
+        )}
+      </div>
+      {msg && <p className="text-[11px] text-ink-2">{msg}</p>}
+      {one?.kind === 'group' && one.source && <p className="text-[11px] leading-relaxed text-ink-3">Si editás a mano una parte de esta figura y después cambiás sus parámetros, los cambios a mano se pierden. Para evitarlo, separala del generador.</p>}
+    </div>
+  );
+}
+
 export function PropertiesPanel() {
   const nodes = useSelectedNodes();
   const del = useStore((s) => s.deleteSelection);
@@ -217,6 +275,7 @@ export function PropertiesPanel() {
           <Trash2 size={13} /> Borrar
         </Button>
       </div>
+      <ManualTools nodes={nodes} />
       {nodes.length === 1 ? <NodeProps key={nodes[0].id} node={nodes[0]} /> : <p className="px-3 py-3 text-[11px] text-ink-3">Arrastralas en el lienzo para moverlas juntas, o elegí una sola para editar sus parámetros.</p>}
     </div>
   );

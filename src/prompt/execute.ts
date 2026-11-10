@@ -3,6 +3,7 @@
 import type { GroupNode, Scene, SceneNode } from '../core/types';
 import { createRng, type Rng } from '../core/random';
 import { IDENTITY, newId } from '../core/scene';
+import { apply } from '../core/transform';
 import { createFromGenerator, getGenerator } from '../engine/generators';
 import { newFx, getStyle, styleDefaults } from '../engine/style';
 import { measureLocal } from '../render/measure';
@@ -36,7 +37,8 @@ export function executePlan(plan: Plan, doc: Scene, seed: number, text: string):
 
   const N = instances.length;
   const spacing = plan.spacing;
-  const cells = layoutCells(N, plan.layout, doc, spacing, rng);
+  const area = targetArea(plan, doc);
+  const cells = layoutCells(N, plan.layout, doc, spacing, rng, area);
 
   const children: SceneNode[] = [];
   const counter = new Map<string, number>();
@@ -70,12 +72,68 @@ export function executePlan(plan: Plan, doc: Scene, seed: number, text: string):
   return group;
 }
 
+/**
+ * Dónde ubicar lo nuevo: la zona pedida o, si ya hay figuras en la mesa, el lugar libre más grande.
+ * Si no queda lugar libre razonable, toda la mesa (y lo avisa en las notas del plan).
+ */
+export function targetArea(plan: Plan, doc: Scene): Area | undefined {
+  const m = Math.min(doc.width, doc.height) * 0.04;
+  if (plan.region) {
+    const r = plan.region;
+    return { x: r.x * doc.width + m, y: r.y * doc.height + m, w: r.w * doc.width - m * 2, h: r.h * doc.height - m * 2 };
+  }
+  const visible = doc.nodes.filter((n) => !n.hidden);
+  if (!visible.length) return undefined;
+  // Grilla de ocupación de 16 × 10 celdas.
+  const C = 16;
+  const R = 10;
+  const cw = doc.width / C;
+  const ch = doc.height / R;
+  const busy = Array.from({ length: R }, () => Array(C).fill(false));
+  for (const n of visible) {
+    const b = measureLocal({ ...n, transform: { ...IDENTITY } });
+    if (!b) continue;
+    const corners = [apply(n.transform, [b.x, b.y]), apply(n.transform, [b.x + b.width, b.y]), apply(n.transform, [b.x, b.y + b.height]), apply(n.transform, [b.x + b.width, b.y + b.height])];
+    const x0 = Math.max(0, Math.floor(Math.min(...corners.map((c) => c[0])) / cw));
+    const x1 = Math.min(C - 1, Math.floor(Math.max(...corners.map((c) => c[0])) / cw));
+    const y0 = Math.max(0, Math.floor(Math.min(...corners.map((c) => c[1])) / ch));
+    const y1 = Math.min(R - 1, Math.floor(Math.max(...corners.map((c) => c[1])) / ch));
+    for (let r = y0; r <= y1; r++) for (let c = x0; c <= x1; c++) busy[r][c] = true;
+  }
+  // El rectángulo libre más grande (búsqueda completa: la grilla es chica).
+  let best = { area: 0, c: 0, r: 0, w: 0, h: 0 };
+  for (let r0 = 0; r0 < R; r0++)
+    for (let c0 = 0; c0 < C; c0++) {
+      if (busy[r0][c0]) continue;
+      let maxW = C - c0;
+      for (let r1 = r0; r1 < R; r1++) {
+        let w = 0;
+        while (w < maxW && !busy[r1][c0 + w]) w++;
+        maxW = w;
+        if (!maxW) break;
+        const h = r1 - r0 + 1;
+        // Se prefieren zonas no demasiado finas.
+        const aspect = (maxW * cw) / (h * ch);
+        const score = maxW * h * (aspect > 4 || aspect < 0.25 ? 0.5 : 1);
+        if (score > best.area) best = { area: score, c: c0, r: r0, w: maxW, h };
+      }
+    }
+  if (best.w * best.h < C * R * 0.12) {
+    plan.notes.push('⚠ No había un lugar libre grande: quedó encima de lo que ya estaba');
+    return undefined;
+  }
+  plan.notes.push('Ubicado en el espacio libre de la mesa');
+  return { x: best.c * cw + m, y: best.r * ch + m, w: best.w * cw - m * 2, h: best.h * ch - m * 2 };
+}
+
 export type Cell = { cx: number; cy: number; w: number; h: number; base?: number };
 
 /** Celdas de la mesa de trabajo según la disposición (fila, grilla, círculo, dispersas, agrupadas). */
-export function layoutCells(N: number, layoutIn: Layout, doc: Scene, spacing: number, rng: Rng): Cell[] {
+export type Area = { x: number; y: number; w: number; h: number };
+
+export function layoutCells(N: number, layoutIn: Layout, doc: Scene, spacing: number, rng: Rng, areaIn?: Area): Cell[] {
   const margin = Math.min(doc.width, doc.height) * 0.06;
-  const area = { x: margin, y: margin, w: doc.width - margin * 2, h: doc.height - margin * 2 };
+  const area = areaIn ?? { x: margin, y: margin, w: doc.width - margin * 2, h: doc.height - margin * 2 };
   const cells: Cell[] = [];
   const layout = N === 1 ? 'single' : layoutIn;
   if (layout === 'single') cells.push({ cx: area.x + area.w / 2, cy: area.y + area.h / 2, w: area.w * 0.8, h: area.h * 0.85 });
