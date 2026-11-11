@@ -79,7 +79,7 @@ export function kit(ctx: GenContext) {
       groupNode(
         ctx,
         name,
-        children.filter((c): c is SceneNode => !!c && (c.kind === 'path' ? c.d.length > 0 : c.children.length > 0)),
+        children.filter((c): c is SceneNode => !!c && (c.kind === 'path' ? c.d.length > 0 : c.kind === 'group' ? c.children.length > 0 : true)),
         role,
       ),
     /** Ubica un nodo (traslada, rota, escala). */

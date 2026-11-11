@@ -8,6 +8,7 @@ import { nodeMarkup } from '../render/svg';
 import { measureLocal } from '../render/measure';
 import { useSelectedNodes, useStore } from '../state/store';
 import { cx } from './controls';
+import { MyStyles } from './Favorites';
 
 const previews = new Map<string, string>();
 
@@ -55,6 +56,7 @@ export function StylesPanel() {
       <p className="px-3 py-2.5 text-[11px] leading-relaxed text-ink-3">
         Se aplica a <span className="font-semibold text-ink-2">{target}</span>. El estilo rehace la geometría (puntos, tramas, líneas) pero la figura original se conserva: lo podés cambiar o sacar cuando quieras.
       </p>
+      <MyStyles />
       <div className="grid grid-cols-2 gap-2 px-3 pb-3">
         {STYLES.map((s) => {
           const url = previews.get(s.id);

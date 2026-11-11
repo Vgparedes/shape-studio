@@ -6,7 +6,7 @@ import { randomSeed } from '../core/random';
 import { useStore } from '../state/store';
 import { useVariants } from '../state/variants';
 import { interpretLocal } from './local';
-import { interpretOllama, loadOllama } from './ollama';
+import { describeImage, interpretOllama, loadOllama } from './ollama';
 import { executePlan } from './execute';
 import { applyEdit, editTargets, looksLikeEdit, parseEdit, wantsVariations } from './edit';
 import { variationsOf } from './variations';
@@ -21,6 +21,41 @@ export function showVariations(id: string) {
   if (!doc || !node) return;
   // La primera es la actual, para poder volver a ella.
   useVariants.getState().show(id, [node, ...variationsOf(node, doc, VARIANTS)]);
+}
+
+/**
+ * Reinterpretar una imagen de referencia con un pedido: se toma su paleta y, si hay un modelo
+ * de visión en Ollama, su descripción. Con eso se genera algo nuevo (no se calca la imagen).
+ */
+export async function generateFromImage(src: { url: string; name: string; img: HTMLImageElement }, text: string, palette: string[]): Promise<PromptEntry> {
+  const settings = loadOllama();
+  let description = '';
+  const notes: string[] = [`Referencia: ${src.name}`, `Paleta tomada de la imagen: ${palette.join(', ')}`];
+  if (settings.enabled && settings.visionModel) {
+    try {
+      description = await describeImage(src.url, settings);
+      notes.push(`La imagen muestra: ${description}`);
+    } catch (e) {
+      notes.push(`⚠ No pude describir la imagen con Ollama (${e instanceof Error ? e.message : String(e)}).`);
+    }
+  } else if (!/[a-z]{3}/i.test(text)) {
+    notes.push('⚠ Sin un modelo de visión no puedo saber qué muestra la imagen: escribí qué querés generar.');
+  }
+  const store = useStore.getState();
+  const doc = store.project?.doc;
+  const seed = randomSeed();
+  const plan = interpretLocal(`${text} ${description}`.trim() || 'algo decorativo', seed);
+  if (!plan.palette.length) plan.palette = palette;
+  plan.notes.unshift(...notes);
+  const entry: PromptEntry = { id: newId('q'), text: `[imagen] ${text}`, at: Date.now(), source: 'local', notes: plan.notes, unknown: plan.unknown };
+  const group = doc ? executePlan(plan, doc, seed, text || src.name) : null;
+  if (group) {
+    store.addNode(group);
+    entry.nodeId = group.id;
+    showVariations(group.id);
+  } else entry.error = 'No pude armar ninguna figura con ese pedido.';
+  store.addPromptEntry(entry);
+  return entry;
 }
 
 export async function generateFromPrompt(text: string): Promise<PromptEntry> {

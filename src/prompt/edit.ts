@@ -264,6 +264,7 @@ function scaleAroundCenter(n: SceneNode, factor: number): SceneNode {
 
 function restyleStrokes(n: SceneNode, color: string): SceneNode {
   if (n.kind === 'path') return n.style.stroke ? { ...n, style: { ...n.style, stroke: color } } : n;
+  if (n.kind === 'image') return n;
   return { ...n, children: n.children.map((c) => restyleStrokes(c, color)) };
 }
 

@@ -82,7 +82,8 @@ export function targetArea(plan: Plan, doc: Scene): Area | undefined {
     const r = plan.region;
     return { x: r.x * doc.width + m, y: r.y * doc.height + m, w: r.w * doc.width - m * 2, h: r.h * doc.height - m * 2 };
   }
-  const visible = doc.nodes.filter((n) => !n.hidden);
+  // Las imágenes de referencia no ocupan lugar: se dibuja encima de ellas.
+  const visible = doc.nodes.filter((n) => !n.hidden && !(n.kind === 'image' && n.reference));
   if (!visible.length) return undefined;
   // Grilla de ocupación de 16 × 10 celdas.
   const C = 16;

@@ -19,6 +19,7 @@ function styleSubtree(n: SceneNode, ctx: GenContext, styleId: string): SceneNode
   // Un hijo con su propio estilo manda sobre el del padre.
   if (n.fx) return applyFx(n);
   if (n.kind === 'group') return { ...n, children: n.children.map((c) => styleSubtree(c, ctx, styleId)) };
+  if (n.kind === 'image') return n; // las imágenes de píxeles no se estilizan
   const def = getStyle(styleId)!;
   const parts = def.path(n, ctx);
   const t = parts[0]?.transform;

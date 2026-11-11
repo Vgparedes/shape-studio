@@ -90,8 +90,31 @@ function occupiedArea(nodes: SceneNode[], doc: Scene) {
 }
 
 /** Una variación del nodo. k elige el énfasis (semillas, proporciones, disposición, todo junto). */
+/** ¿Tiene figuras generadas adentro (con parámetros)? */
+function hasGenerated(n: SceneNode): boolean {
+  return !!n.source || (n.kind === 'group' && n.children.some(hasGenerated));
+}
+
+// Para dibujos sin parámetros (SVG importados, vectorizados, editados a mano): variantes de tratamiento
+// que conservan la silueta y la orientación.
+const SHAPE_KEEPING: { style: string; params: Record<string, number | string | boolean> }[] = [
+  { style: 'minimalist', params: { detail: 0.15, minSize: 12 } },
+  { style: 'organic', params: { amount: 5, freq: 0.05 } },
+  { style: 'geometric', params: { facets: 0.04 } },
+  { style: 'minimalist', params: { detail: 0.45, minSize: 6 } },
+  { style: 'handdrawn', params: { rough: 2, offset: 3 } },
+  { style: 'lineart', params: { width: 2 } },
+  { style: 'engraving', params: {} },
+  { style: 'dotwork', params: {} },
+];
+
 export function variantOf(node: SceneNode, doc: Scene, k: number, seed: number): SceneNode {
   const rng = createRng(seed);
+  if (!hasGenerated(node)) {
+    const v = SHAPE_KEEPING[k % SHAPE_KEEPING.length];
+    const fx = newFx(v.style, seed);
+    return { ...node, id: newId(), fx: fx ? { ...fx, params: { ...fx.params, ...v.params } } : undefined };
+  }
   const mode = k % 4;
   let out: SceneNode;
   if (node.kind === 'group' && node.prompt && node.children.length > 1 && mode === 2) {

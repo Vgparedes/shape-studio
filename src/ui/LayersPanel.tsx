@@ -1,6 +1,6 @@
 // Panel derecho, parte de abajo: capas. La de más arriba en la lista es la que se dibuja encima.
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, ChevronsDown, ChevronsUp, Eye, EyeOff, Folder, Lock, LockOpen, Spline } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, ChevronsDown, ChevronsUp, Image as ImageIcon, Eye, EyeOff, Folder, Lock, LockOpen, Spline } from 'lucide-react';
 import type { SceneNode } from '../core/types';
 import { useStore } from '../state/store';
 import { IconButton, cx } from './controls';
@@ -31,7 +31,7 @@ function Row({ node, depth }: { node: SceneNode; depth: number }) {
         ) : (
           <span className="w-5" />
         )}
-        {isGroup ? <Folder size={13} className="shrink-0 text-ink-3" /> : <Spline size={13} className="shrink-0 text-ink-3" />}
+        {isGroup ? <Folder size={13} className="shrink-0 text-ink-3" /> : node.kind === 'image' ? <ImageIcon size={13} className="shrink-0 text-ink-3" /> : <Spline size={13} className="shrink-0 text-ink-3" />}
         {editing ? (
           <input
             autoFocus

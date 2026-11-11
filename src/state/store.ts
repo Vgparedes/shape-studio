@@ -1,7 +1,7 @@
 // Estado de la app: proyecto abierto, selección e historial para deshacer y rehacer.
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import type { ParamValues, Project, PromptEntry, Scene, SceneNode } from '../core/types';
+import type { ParamValues, Project, PromptEntry, Scene, SceneNode, StyleFx } from '../core/types';
 import { cloneNode, findNode, locate, mapNode, newId, removeNodes, reorderNode } from '../core/scene';
 import { createFromGenerator, regenerateNode } from '../engine/generators';
 import { measureLocal } from '../render/measure';
@@ -46,11 +46,15 @@ interface State {
 
   /** Aplica un estilo visual a lo seleccionado o, si no hay nada seleccionado, a todas las figuras. */
   applyStyle(styleId: string): void;
+  /** Aplica un estilo guardado (con sus ajustes) a lo seleccionado o a todo. */
+  applyFx(fx: StyleFx): void;
   updateFx(id: string, patch: { params?: ParamValues; seed?: number }, opts?: { history?: boolean }): void;
   removeFx(id: string): void;
 
   /** Suma un nodo ya armado (por ejemplo, lo generado por un pedido) y lo selecciona. */
   addNode(node: SceneNode): void;
+  /** Suma un nodo centrado en la mesa y achicado para que entre (imágenes, SVG, vectorizados, favoritos). */
+  addCentered(node: SceneNode, fill?: number): void;
   addPromptEntry(entry: PromptEntry): void;
   /** Reemplaza un nodo por otro (variación elegida, acción rápida) en un solo paso de deshacer. */
   replaceNode(id: string, node: SceneNode): void;
@@ -201,6 +205,16 @@ export const useStore = create<State>((set, get) => {
         return { ...d, nodes };
       });
     },
+    applyFx: (fx) => {
+      const p = get().project;
+      if (!p) return;
+      const targets = get().selection.length ? get().selection : p.doc.nodes.map((n) => n.id);
+      withDoc((d) => {
+        let nodes = d.nodes;
+        for (const id of targets) nodes = mapNode(nodes, id, (n) => ({ ...n, fx: structuredClone(fx) }));
+        return { ...d, nodes };
+      });
+    },
     updateFx: (id, patch, opts) =>
       get().updateNode(id, (n) => (n.fx ? { ...n, fx: { ...n.fx, params: patch.params ?? n.fx.params, seed: patch.seed ?? n.fx.seed } } : n), opts),
     removeFx: (id) =>
@@ -213,6 +227,20 @@ export const useStore = create<State>((set, get) => {
     addNode: (node) => {
       withDoc((d) => ({ ...d, nodes: [...d.nodes, node] }));
       set({ selection: [node.id] });
+    },
+    addCentered: (node, fill = 0.8) => {
+      const p = get().project;
+      if (!p) return;
+      // Se mide con su propia transformación (un SVG o un vectorizado traen su corrimiento).
+      const tmp: SceneNode = { id: 'tmp', name: '', kind: 'group', children: [node], transform: { x: 0, y: 0, rotation: 0, scale: 1 }, opacity: 1, hidden: false, locked: false };
+      const b = measureLocal(tmp) ?? { x: -50, y: -50, width: 100, height: 100 };
+      const s = Math.min(1, (p.doc.width * fill) / b.width, (p.doc.height * fill) / b.height);
+      const px = p.doc.width / 2 - (b.x + b.width / 2) * s;
+      const py = p.doc.height / 2 - (b.y + b.height / 2) * s;
+      const t = node.transform;
+      const final = { ...node, transform: { x: px + s * t.x, y: py + s * t.y, rotation: t.rotation, scale: Math.round(s * t.scale * 1000) / 1000 } } as SceneNode;
+      withDoc((d) => ({ ...d, nodes: [...d.nodes, final] }));
+      set({ selection: [final.id] });
     },
     replaceNode: (id, node) => {
       withDoc((d) => ({ ...d, nodes: mapNode(d.nodes, id, () => node) }));

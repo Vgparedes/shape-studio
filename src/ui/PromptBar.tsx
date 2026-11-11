@@ -1,11 +1,12 @@
 // Barra de pedidos (debajo del lienzo): campo de texto, historial del proyecto e intérprete elegido.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SceneNode } from '../core/types';
-import { ChevronUp, Cpu, Dices, History, Layers3, Loader2, Minimize2, Palette, Plus, RotateCcw, Shuffle, Sparkles, Wand2 } from 'lucide-react';
+import { Star, ChevronUp, Cpu, Dices, History, Layers3, Loader2, Minimize2, Palette, Plus, RotateCcw, Shuffle, Sparkles, Wand2 } from 'lucide-react';
 import { editTargets } from '../prompt/edit';
 import { adjustDetail, applyPalette, changeStyle, randomPalette, randomize, reinterpret } from '../prompt/variations';
 import { showVariations } from '../prompt';
 import { VariantsPanel } from './VariantsPanel';
+import { useLibrary } from '../state/library';
 import { useStore } from '../state/store';
 import { generateFromPrompt } from '../prompt';
 import { DEFAULT_OLLAMA, listModels, loadOllama, saveOllama, type OllamaSettings } from '../prompt/ollama';
@@ -66,6 +67,10 @@ function OllamaDialog({ onClose }: { onClose: () => void }) {
           ) : (
             <input id="ollama-model" value={s.model} onChange={(e) => setS({ ...s, model: e.target.value })} className="rounded bg-panel-2 px-2 py-1.5 font-mono text-[12px] text-ink outline-none ring-1 ring-line focus:ring-accent" />
           )}
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-ink-3">Modelo de visión para imágenes de referencia (opcional, por ejemplo llava)</span>
+          <input id="ollama-vision" value={s.visionModel ?? ''} placeholder="Vacío = no describir imágenes" onChange={(e) => setS({ ...s, visionModel: e.target.value })} className="rounded bg-panel-2 px-2 py-1.5 font-mono text-[12px] text-ink outline-none ring-1 ring-line placeholder:text-ink-3 focus:ring-accent" />
         </label>
         <div className="flex items-center gap-2">
           <Button onClick={test} disabled={busy}>
@@ -146,6 +151,7 @@ export function PromptBar() {
   const prompts = useStore((s) => s.project?.prompts) ?? NO_PROMPTS;
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const saved = useLibrary((s) => s.items.prompt);
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(false);
   const [mode, setMode] = useState(loadOllama);
@@ -173,6 +179,23 @@ export function PromptBar() {
       <VariantsPanel />
       {open && (
         <div ref={listRef} className="max-h-[38vh] overflow-y-auto border-b border-line px-3 py-2">
+          {saved.length > 0 && (
+            <div className="mb-3 space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-2">★ Pedidos guardados</p>
+              <div className="flex flex-wrap gap-1.5">
+                {saved.map((x) => (
+                  <span key={x.id} className="flex max-w-full items-center rounded-md ring-1 ring-line">
+                    <button type="button" onClick={() => setText(String(x.data))} className="truncate px-2 py-1 text-left text-[11px] text-ink-2 hover:text-ink" title={String(x.data)}>
+                      {String(x.data).slice(0, 70)}
+                    </button>
+                    <button type="button" aria-label="Quitar de guardados" onClick={() => void useLibrary.getState().remove(x)} className="px-1.5 text-ink-3 hover:text-danger">
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           {prompts.length === 0 ? (
             <div className="space-y-2 py-1">
               <p className="text-[11px] text-ink-3">Todavía no hay pedidos en este proyecto. Probá con alguno de estos:</p>
@@ -189,6 +212,15 @@ export function PromptBar() {
                   <div className="flex items-start gap-2">
                     <p className="min-w-0 flex-1 text-[12px] font-medium text-ink">“{p.text}”</p>
                     <span className="shrink-0 font-mono text-[10px] text-ink-3">{hora.format(p.at)}</span>
+                    <button
+                      type="button"
+                      title="Guardar este pedido"
+                      aria-label="Guardar este pedido"
+                      onClick={() => !saved.some((x) => x.data === p.text) && void useLibrary.getState().save('prompt', p.text.slice(0, 60), p.text)}
+                      className={cx('flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-panel-2', saved.some((x) => x.data === p.text) ? 'text-accent' : 'text-ink-3 hover:text-ink')}
+                    >
+                      <Star size={12} fill={saved.some((x) => x.data === p.text) ? 'currentColor' : 'none'} />
+                    </button>
                     <button type="button" title="Volver a usar este pedido" aria-label="Volver a usar este pedido" onClick={() => setText(p.text)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-panel-2 hover:text-ink">
                       <RotateCcw size={12} />
                     </button>

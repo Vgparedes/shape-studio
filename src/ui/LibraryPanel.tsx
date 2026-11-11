@@ -8,6 +8,8 @@ import { measureLocal } from '../render/measure';
 import { useStore } from '../state/store';
 import { Section } from './controls';
 import { StylesPanel } from './StylesPanel';
+import { PalettePanel } from './PalettePanel';
+import { MyFigures } from './Favorites';
 
 function thumbnail(id: string): string {
   const node = createFromGenerator(id, { seed: 1 });
@@ -34,7 +36,7 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
     return CATEGORIES.map((c) => ({ ...c, items: all.filter((g) => g.category === c.id || (!q && g.also?.includes(c.id))).map((g) => ({ g, thumb: thumbs.get(g.id) ?? '' })) })).filter((c) => c.items.length);
   }, [query, thumbs]);
 
-  const [tab, setTab] = useState<'shapes' | 'styles'>('shapes');
+  const [tab, setTab] = useState<'shapes' | 'styles' | 'colors'>('shapes');
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 gap-1 border-b border-line px-2 pt-1.5" role="tablist">
@@ -42,6 +44,7 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
           [
             ['shapes', 'Figuras'],
             ['styles', 'Estilos'],
+            ['colors', 'Colores'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -58,6 +61,8 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
       </div>
       {tab === 'styles' ? (
         <StylesPanel />
+      ) : tab === 'colors' ? (
+        <PalettePanel />
       ) : (
         <>
       <div className="border-b border-line px-3 py-2.5">
@@ -81,6 +86,7 @@ export function LibraryPanel({ onPicked }: { onPicked?: () => void }) {
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {!query && <MyFigures />}
         {groups.map((c) => (
           <Section key={c.id} title={`${c.name} · ${c.items.length}`}>
             <div className="grid grid-cols-2 gap-2">

@@ -64,6 +64,7 @@ export function removeNodes(nodes: SceneNode[], ids: Set<string>): SceneNode[] {
 export function cloneNode(n: SceneNode, rename = true): SceneNode {
   const base = { ...n, id: newId(), name: rename ? `${n.name} copia` : n.name };
   if (n.kind === 'group') return { ...base, kind: 'group', children: n.children.map((c) => cloneNode(c, false)) };
+  if (n.kind === 'image') return { ...base } as SceneNode;
   return { ...base, kind: 'path', d: n.d, style: { ...n.style } } as SceneNode;
 }
 

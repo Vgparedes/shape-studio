@@ -41,4 +41,4 @@ export const reader = (p: ParamValues) => ({
 
 /** Saca los nodos vacíos (por ejemplo, un grupo de hojas cuando hay 0 hojas). */
 export const compact = (nodes: (SceneNode | null | false | undefined | '' | 0)[]): SceneNode[] =>
-  nodes.filter((n): n is SceneNode => !!n && (n.kind === 'path' ? n.d.length > 0 : n.children.length > 0));
+  nodes.filter((n): n is SceneNode => !!n && (n.kind === 'path' ? n.d.length > 0 : n.kind === 'group' ? n.children.length > 0 : true));

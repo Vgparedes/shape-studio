@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from './state/store';
 import { useView } from './state/view';
+import { useLibrary } from './state/library';
 import { boot, saveNow, startAutosave } from './projects/session';
 import { TopBar } from './ui/TopBar';
 import { LibraryPanel } from './ui/LibraryPanel';
@@ -9,6 +10,7 @@ import { PropertiesPanel } from './ui/PropertiesPanel';
 import { LayersPanel } from './ui/LayersPanel';
 import { ProjectsDialog } from './ui/ProjectsDialog';
 import { ExportDialog } from './ui/ExportDialog';
+import { ImportDialog } from './ui/ImportDialog';
 import { PromptBar } from './ui/PromptBar';
 import { cx } from './ui/controls';
 
@@ -18,13 +20,15 @@ const isWide = () => window.matchMedia('(min-width: 1024px)').matches;
 export default function App() {
   const ready = useStore((s) => s.project !== null);
   const [error, setError] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<null | 'projects' | 'versions' | 'export'>(null);
+  const [dialog, setDialog] = useState<null | 'projects' | 'versions' | 'export' | 'import'>(null);
+  const [dropped, setDropped] = useState<File | null>(null);
   // En compu los dos paneles arrancan abiertos; en celu y tablet, cerrados para dejar el lienzo libre.
   const [leftOpen, setLeftOpen] = useState(isWide);
   const [rightOpen, setRightOpen] = useState(isWide);
 
   useEffect(() => {
     const stop = startAutosave();
+    void useLibrary.getState().load().catch(() => undefined);
     boot().catch((e) => setError(e instanceof Error ? e.message : String(e)));
     return () => {
       stop();
@@ -111,6 +115,10 @@ export default function App() {
         onProjects={() => setDialog('projects')}
         onVersions={() => setDialog('versions')}
         onExport={() => setDialog('export')}
+        onImport={() => {
+          setDropped(null);
+          setDialog('import');
+        }}
         leftOpen={leftOpen}
         rightOpen={rightOpen}
         onToggleLeft={() => {
@@ -128,7 +136,18 @@ export default function App() {
             <LibraryPanel onPicked={() => !isWide() && setLeftOpen(false)} />
           </aside>
         )}
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main
+          className="flex min-w-0 flex-1 flex-col"
+          onDragOver={(e) => e.dataTransfer.types.includes('Files') && e.preventDefault()}
+          onDrop={(e) => {
+            // Soltar una imagen sobre el lienzo abre la ventana de referencia con ese archivo.
+            const f = e.dataTransfer.files[0];
+            if (!f) return;
+            e.preventDefault();
+            setDropped(f);
+            setDialog('import');
+          }}
+        >
           <div className="min-h-0 flex-1">
             <Canvas />
           </div>
@@ -147,6 +166,7 @@ export default function App() {
       </div>
       {(dialog === 'projects' || dialog === 'versions') && <ProjectsDialog initialTab={dialog} onClose={() => setDialog(null)} />}
       {dialog === 'export' && <ExportDialog onClose={() => setDialog(null)} />}
+      {dialog === 'import' && <ImportDialog initialFile={dropped} onClose={() => setDialog(null)} />}
     </div>
   );
 }

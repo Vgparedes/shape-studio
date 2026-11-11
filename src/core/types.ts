@@ -12,6 +12,8 @@ export type Style = {
   lineJoin?: 'round' | 'miter' | 'bevel';
   /** 'stroke' pinta el contorno antes que el relleno: en formas superpuestas solo se ve el contorno de afuera. */
   paintOrder?: 'stroke';
+  /** 'evenodd': los agujeros (por ejemplo, de un vectorizado) quedan vacíos sin importar el sentido. */
+  fillRule?: 'evenodd';
 };
 
 export type ParamValue = number | string | boolean;
@@ -56,7 +58,18 @@ export interface GroupNode extends NodeBase {
   children: SceneNode[];
 }
 
-export type SceneNode = PathNode | GroupNode;
+/** Imagen de píxeles: referencia para calcar (no se exporta) o elemento de la composición. */
+export interface ImageNode extends NodeBase {
+  kind: 'image';
+  /** data: URL de la imagen. */
+  href: string;
+  width: number;
+  height: number;
+  /** Si es referencia: se ve en el lienzo pero no sale en la exportación. */
+  reference?: boolean;
+}
+
+export type SceneNode = PathNode | GroupNode | ImageNode;
 
 export interface Scene {
   width: number;

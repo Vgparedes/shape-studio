@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, FolderOpen, History, Layers, PanelLeft, Redo2, Shapes, Undo2 } from 'lucide-react';
+import { Download, FolderOpen, History, ImageUp, Layers, PanelLeft, Redo2, Shapes, Undo2 } from 'lucide-react';
 import { useStore } from '../state/store';
 import { Button, IconButton, cx } from './controls';
 
@@ -19,6 +19,7 @@ export function TopBar({
   onProjects,
   onVersions,
   onExport,
+  onImport,
   leftOpen,
   rightOpen,
   onToggleLeft,
@@ -27,6 +28,7 @@ export function TopBar({
   onProjects: () => void;
   onVersions: () => void;
   onExport: () => void;
+  onImport: () => void;
   leftOpen: boolean;
   rightOpen: boolean;
   onToggleLeft: () => void;
@@ -77,6 +79,9 @@ export function TopBar({
           <FolderOpen size={14} /> Proyectos
         </Button>
       </span>
+      <IconButton label="Imagen de referencia (PNG, JPG, WEBP o SVG)" onClick={onImport}>
+        <ImageUp size={16} />
+      </IconButton>
       <IconButton label="Versiones" onClick={onVersions}>
         <History size={16} />
       </IconButton>

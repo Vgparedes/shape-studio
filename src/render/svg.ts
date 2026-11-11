@@ -16,6 +16,7 @@ export function transformAttr(t: Transform): string {
 
 function styleAttrs(s: Style): string {
   let a = ` fill="${s.fill ? esc(s.fill) : 'none'}"`;
+  if (s.fillRule) a += ` fill-rule="${s.fillRule}"`;
   if (s.stroke && s.strokeWidth > 0) {
     a += ` stroke="${esc(s.stroke)}" stroke-width="${r2(s.strokeWidth)}"`;
     if (s.lineCap) a += ` stroke-linecap="${s.lineCap}"`;
@@ -41,7 +42,7 @@ function layerId(name: string, used: Set<string>): string {
   return id;
 }
 
-type Mode = { canvas: boolean; used: Set<string> };
+type Mode = { canvas: boolean; used: Set<string>; /** capas de Inkscape: solo en el documento exportado (declara su espacio de nombres) */ layers?: boolean };
 
 function nodeToSvg(node: SceneNode, mode: Mode, top: boolean): string {
   if (node.hidden) return '';
@@ -55,9 +56,16 @@ function nodeToSvg(node: SceneNode, mode: Mode, top: boolean): string {
     if (n.locked) attrs += ' data-locked="1"';
   } else {
     attrs += ` id="${layerId(n.name, mode.used)}"`;
+    // Las figuras de primer nivel salen como capas con nombre (Inkscape las muestra en su panel de capas).
+    if (mode.layers && top && n.kind === 'group') attrs += ` inkscape:groupmode="layer" inkscape:label="${esc(n.name)}"`;
   }
   if (n.kind === 'group') {
     return `<g${attrs}>${n.children.map((c) => nodeToSvg(c, mode, false)).join('')}</g>`;
+  }
+  if (n.kind === 'image') {
+    // Las referencias no salen en la exportación.
+    if (n.reference && !mode.canvas) return '';
+    return `<image${attrs} href="${n.href}" x="${-n.width / 2}" y="${-n.height / 2}" width="${n.width}" height="${n.height}" preserveAspectRatio="none"/>`;
   }
   return `<path${attrs} d="${n.d}"${styleAttrs(n.style)}/>`;
 }
@@ -68,8 +76,8 @@ export function nodeMarkup(node: SceneNode): string {
 }
 
 /** Contenido de la escena sin el <svg> que lo envuelve (para meterlo dentro del lienzo). */
-export function sceneContent(scene: Scene, canvas: boolean): string {
-  const mode: Mode = { canvas, used: new Set() };
+export function sceneContent(scene: Scene, canvas: boolean, layers = false): string {
+  const mode: Mode = { canvas, used: new Set(), layers };
   return scene.nodes.map((n) => nodeToSvg(n, mode, true)).join('');
 }
 
@@ -78,9 +86,9 @@ export function sceneToSvg(scene: Scene, opts: { background?: boolean; width?: n
   const { width, height } = scene;
   const bg = opts.background !== false && scene.background ? `<rect id="fondo" width="${width}" height="${height}" fill="${esc(scene.background)}"/>` : '';
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${opts.width ?? width}" height="${opts.height ?? height}" viewBox="0 0 ${width} ${height}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${opts.width ?? width}" height="${opts.height ?? height}" viewBox="0 0 ${width} ${height}">` +
     bg +
-    sceneContent(scene, false) +
+    sceneContent(scene, false, true) +
     '</svg>'
   );
 }

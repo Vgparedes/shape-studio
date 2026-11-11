@@ -85,7 +85,7 @@ El Composition Engine tiene una versión inicial (`prompt/execute.ts`) que se co
 | 7. Prompts (reglas locales + Ollama opcional) | ✓ Hecha |
 | 8. Variaciones y edición conversacional | ✓ Hecha |
 | 9. Editor manual completo | ✓ Hecha |
-| 10. Referencias visuales y exportación | Exportación SVG / PNG / WEBP hecha |
+| 10. Referencias visuales, paletas, favoritos y exportación | ✓ Hecha |
 
 ### Etapa 1: qué hay
 
@@ -222,3 +222,31 @@ Barra de **pedidos** debajo del lienzo: escribís lo que querés y se genera. En
 **Límites:**
 - La edición de nodos convierte las curvas en puntos y vuelve a unirlos con curvas suaves (o rectas). No hay manijas de Bézier individuales.
 - Las manijas de escala y rotación aparecen solo con una figura de primer nivel seleccionada. Para las partes internas se usan los valores de Propiedades.
+
+### Etapa 10: qué hay
+
+**Imágenes de referencia** (botón de imagen arriba, o soltar el archivo sobre la mesa). Acepta PNG, JPG, JPEG, WEBP y SVG. Cinco usos:
+- **Importar el SVG:** conserva la geometría original; cada forma queda como trazado editable con sus colores. Los degradados y patrones del SVG no se traen (se usa un color plano).
+- **Referencia para calcar:** semitransparente, bloqueada y al fondo. **No sale en la exportación.**
+- **Vectorizar** con tres modos: **Trazos** (dibujos de línea; suma una capa "Rellenos" con las zonas cerradas), **Silueta** y **Por colores** (2 a 10 colores, con opción de quitar el fondo). Sugiere el modo según la imagen. Es una aproximación: bordes finos y detalles chicos pueden cambiar.
+- **Usarla como elemento:** va tal cual a la composición (en el SVG exportado queda como imagen de píxeles, y la ventana de exportar lo avisa).
+- **Reinterpretar con un pedido:** genera figuras nuevas con la paleta de la imagen. Si hay un modelo de visión configurado en Ollama, también usa su descripción (**sin probar con un modelo real**).
+- Después de vectorizar o importar, puede mostrar **variantes que conservan la silueta** (simplificada, orgánica, geométrica, de puntos…).
+
+**Colores** (pestaña nueva del panel izquierdo):
+- Paleta actual de 5 colores editables, con el código HEX para copiar.
+- Armonías desde un color base: análoga, complementaria, triádica, monocromática, tierra y al azar.
+- Sacar la paleta de una imagen.
+- Se aplica a lo seleccionado o a lo último generado.
+
+**Favoritos** (se guardan en este navegador, en IndexedDB):
+- **Mis figuras** (desde Propiedades, "Guardar en Mis figuras"), **Mis estilos** (un estilo con sus ajustes), **paletas favoritas** y **pedidos guardados** (estrella en el historial de pedidos).
+
+**Exportación:**
+- Qué exportar: **todo**, **lo seleccionado** (recortado a su tamaño) o **cada figura por separado** en un ZIP.
+- SVG con capas que Inkscape reconoce (cada figura de primer nivel es una capa con su nombre).
+- PNG y WEBP con tamaño a elección, fondo transparente o no, y calidad en WEBP.
+
+**Límites:**
+- El vectorizado no es exacto: está pensado para siluetas, dibujos de línea y logos simples. Una foto da manchas de color.
+- Ollama (texto y visión) no se probó con un modelo instalado; sin Ollama todo anda con las reglas locales.

@@ -1,7 +1,8 @@
 // Panel derecho, parte de arriba: propiedades de lo seleccionado (o del documento si no hay nada).
 import { useRef, useState } from 'react';
 import { useView } from '../state/view';
-import { Copy, Dices, Group, PenTool, Spline, Trash2, Ungroup, Unlink } from 'lucide-react';
+import { Copy, Dices, Group, PenTool, Spline, Star, Trash2, Ungroup, Unlink } from 'lucide-react';
+import { useLibrary } from '../state/library';
 import type { ParamValues, Scene, SceneNode, Style } from '../core/types';
 import { randomSeed } from '../core/random';
 import { getGenerator } from '../engine/generators';
@@ -31,11 +32,12 @@ function useGesture() {
 }
 
 function paths(n: SceneNode): Extract<SceneNode, { kind: 'path' }>[] {
-  return n.kind === 'path' ? [n] : n.children.flatMap(paths);
+  return n.kind === 'path' ? [n] : n.kind === 'group' ? n.children.flatMap(paths) : [];
 }
 
 function restyle(n: SceneNode, patch: Partial<Style>): SceneNode {
   if (n.kind === 'path') return { ...n, style: { ...n.style, ...patch } };
+  if (n.kind === 'image') return n;
   return { ...n, children: n.children.map((c) => restyle(c, patch)) };
 }
 
@@ -146,9 +148,14 @@ function StyleFxParams({ node }: { node: SceneNode }) {
       {def.params.map((p) => (
         <ParamControl key={p.key} p={p} value={params[p.key] ?? p.default} set={set(p.key)} end={() => g.end()} />
       ))}
-      <Button onClick={() => updateFx(node.id, { seed: randomSeed() })}>
-        <Dices size={14} /> Otra variación del estilo
-      </Button>
+      <div className="flex flex-wrap gap-1.5">
+        <Button onClick={() => updateFx(node.id, { seed: randomSeed() })}>
+          <Dices size={14} /> Otra variación
+        </Button>
+        <Button onClick={() => void useLibrary.getState().save('style', `${def.name} (mío)`, fx)}>
+          <Star size={14} /> Guardar estilo
+        </Button>
+      </div>
     </Section>
   );
 }
@@ -244,6 +251,11 @@ function ManualTools({ nodes }: { nodes: SceneNode[] }) {
         {one?.kind === 'path' && one.anchors && (
           <button type="button" className={btn} onClick={() => s.setSmooth(one.id, one.smooth === false)}>
             <Spline size={12} /> {one.smooth === false ? 'Curvas suaves' : 'Esquinas rectas'}
+          </button>
+        )}
+        {one && (
+          <button type="button" className={btn} title="Para usarla en otros proyectos" onClick={() => void useLibrary.getState().save('figure', one.name, one).then(() => say('Guardada en Mis figuras (pestaña Figuras).'))}>
+            <Star size={12} /> Guardar en Mis figuras
           </button>
         )}
         {one && (one.source || one.prompt) && (

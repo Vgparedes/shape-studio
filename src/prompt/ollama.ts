@@ -11,10 +11,12 @@ export interface OllamaSettings {
   enabled: boolean;
   url: string;
   model: string;
+  /** Modelo con visión (por ejemplo, llava) para describir imágenes de referencia. Vacío = no se usa. */
+  visionModel?: string;
 }
 
 const KEY = 'shape-studio:ollama';
-export const DEFAULT_OLLAMA: OllamaSettings = { enabled: false, url: 'http://localhost:11434', model: 'llama3.1' };
+export const DEFAULT_OLLAMA: OllamaSettings = { enabled: false, url: 'http://localhost:11434', model: 'llama3.1', visionModel: '' };
 
 export function loadOllama(): OllamaSettings {
   try {
@@ -77,6 +79,36 @@ async function chat(s: OllamaSettings, system: string, user: string): Promise<un
   } catch {
     throw new Error('El modelo no devolvió un JSON válido.');
   }
+}
+
+/** Describe una imagen con un modelo de visión de Ollama (una frase en castellano). */
+export async function describeImage(dataUrl: string, s: OllamaSettings): Promise<string> {
+  if (!s.visionModel) throw new Error('No hay modelo de visión elegido.');
+  let res: Response;
+  try {
+    res = await fetch(`${base(s.url)}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: s.visionModel,
+        stream: false,
+        options: { temperature: 0.2 },
+        messages: [
+          {
+            role: 'user',
+            content: 'Describí en castellano, en una sola frase corta, qué objeto o figura muestra la imagen, cuántos hay, hacia dónde mira y cómo es su forma. Sin introducciones.',
+            images: [dataUrl.replace(/^data:[^,]+,/, '')],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+  } catch {
+    throw new Error(`No pude conectarme a Ollama en ${s.url}.`);
+  }
+  if (!res.ok) throw new Error(`Ollama respondió con error ${res.status} (¿está instalado ${s.visionModel}?).`);
+  const data = (await res.json()) as { message?: { content?: string } };
+  return (data.message?.content ?? '').trim();
 }
 
 const LAYOUTS: Layout[] = ['single', 'row', 'column', 'grid', 'circle', 'scatter', 'cluster'];
