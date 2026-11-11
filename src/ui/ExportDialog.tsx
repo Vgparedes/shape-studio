@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Download } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../state/store';
 import { cropScene, download, exportRaster, exportSvg, fileSafeName } from '../export/export';
 import { makeZip } from '../export/zip';
@@ -19,7 +20,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const height = Math.round((width * doc.height) / doc.width);
   const name = fileSafeName(project.name);
-  const selection = useStore((s) => s.selection.filter((id) => s.project!.doc.nodes.some((n) => n.id === id)));
+  const selection = useStore(useShallow((s) => s.selection.filter((id) => s.project!.doc.nodes.some((n) => n.id === id))));
   const exportable = doc.nodes.filter((n) => !n.hidden && !(n.kind === 'image' && n.reference));
   const [scope, setScope] = useState<'all' | 'selection' | 'each'>('all');
   const hasRaster = exportable.some((n) => JSON.stringify(n).includes('"kind":"image"'));
